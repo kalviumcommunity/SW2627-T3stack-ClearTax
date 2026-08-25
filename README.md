@@ -1,36 +1,108 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# ClearTax Bulk Invoice Processing
 
-## Getting Started
+A bulk invoice processing application built with Next.js.
 
-First, run the development server:
+## Current Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+### Invoice APIs
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Get all invoices
+- Create a new invoice
+- Get a single invoice by ID
+- Update invoice status and error details
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+### Processing
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Invoices currently follow this lifecycle:
 
-## Learn More
+pending → processing → matched / mismatch / failed
 
-To learn more about Next.js, take a look at the following resources:
+### Progress Tracking
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The application tracks:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Total invoices
+- Pending invoices
+- Processing invoices
+- Processed invoices
+- Processing percentage
 
-## Deploy on Vercel
+## API Endpoints
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Get All Invoices
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+GET `/api/invoices`
+
+Returns all available invoices.
+
+### Create Invoice
+
+POST `/api/invoices`
+
+Creates a new invoice with validation.
+
+### Get Invoice by ID
+
+GET `/api/invoices/:id`
+
+Returns a specific invoice.
+
+### Update Invoice
+
+PATCH `/api/invoices/:id`
+
+Updates the invoice status and error information.
+
+Possible statuses:
+
+- pending
+- processing
+- matched
+- mismatch
+- failed
+
+### Start Processing
+
+POST `/api/invoices/process`
+
+Changes pending invoices to processing.
+
+### Get Processing Progress
+
+GET `/api/invoices/progress`
+
+Returns the current invoice processing progress.
+
+## Current Project Flow
+
+Create Invoice
+↓
+Pending
+↓
+Start Processing
+↓
+Processing
+↓
+Matched / Mismatch / Failed
+↓
+Track Progress
+
+## Current Limitation
+
+The project currently uses in-memory data from `lib/invoices.js`. The data resets when the server restarts.
+
+## Upcoming Features
+
+- CSV invoice upload
+- Bulk invoice processing
+- Row-level error handling
+- Background processing
+- Database integration
+- Frontend invoice table
+- Live progress bar
+
+## Tech Stack
+
+- Next.js
+- React
+- Next.js Route Handlers
