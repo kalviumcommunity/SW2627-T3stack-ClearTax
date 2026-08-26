@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
-import { invoices } from "@/lib/invoices";
+import {
+  getUserInvoices,
+  updateUserInvoice,
+  getUserIdFromRequest,
+} from "@/lib/invoices";
 
 export async function GET(request, { params }) {
   const { id } = await params;
+  const userId = getUserIdFromRequest(request);
+  const userInvoices = getUserInvoices(userId);
 
-  const invoice = invoices.find(
+  const invoice = userInvoices.find(
     (item) => item.id === Number(id)
   );
 
@@ -22,13 +28,15 @@ export async function GET(request, { params }) {
     success: true,
     data: invoice,
   });
-  
 }
+
 export async function PATCH(request, { params }) {
   const { id } = await params;
   const invoiceId = Number(id);
+  const userId = getUserIdFromRequest(request);
+  const userInvoices = getUserInvoices(userId);
 
-  const invoice = invoices.find(
+  const invoice = userInvoices.find(
     (item) => item.id === invoiceId
   );
 
@@ -44,7 +52,6 @@ export async function PATCH(request, { params }) {
 
   try {
     const body = await request.json();
-
     const { status, error } = body;
 
     const allowedStatuses = [
@@ -65,18 +72,16 @@ export async function PATCH(request, { params }) {
       );
     }
 
-    if (status) {
-      invoice.status = status;
-    }
+    const updates = {};
+    if (status) updates.status = status;
+    if (error !== undefined) updates.error = error;
 
-    if (error !== undefined) {
-      invoice.error = error;
-    }
+    const updated = updateUserInvoice(userId, invoiceId, updates);
 
     return NextResponse.json({
       success: true,
       message: "Invoice updated successfully",
-      data: invoice,
+      data: updated,
     });
   } catch {
     return NextResponse.json(
@@ -87,4 +92,4 @@ export async function PATCH(request, { params }) {
       { status: 400 }
     );
   }
-}
+}

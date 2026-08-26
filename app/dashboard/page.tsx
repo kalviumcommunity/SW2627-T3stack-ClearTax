@@ -7,8 +7,11 @@ import {
   AlertTriangle,
   XCircle,
   FileText,
+  LogOut,
+  User as UserIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 type InvoiceStatus =
   | "pending"
@@ -28,33 +31,76 @@ interface InvoiceRecord {
   error: string | null;
 }
 
-export default function Home() {
+interface UserSession {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export default function DashboardPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<UserSession | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
+  const [isLoadingInvoices, setIsLoadingInvoices] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch real invoices from backend
-  const fetchInvoices = async () => {
+  // Check user session
+  useEffect(() => {
     try {
-      const response = await fetch("/api/invoices");
+      const stored = localStorage.getItem("cleartax_user");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && parsed.id) {
+          setUser(parsed);
+          fetchInvoices(parsed.id);
+          return;
+        }
+      }
+    } catch {
+      // Fallback
+    }
+
+    // Default fallback session if accessed directly
+    const fallbackUser: UserSession = {
+      id: "demo@cleartax.com",
+      name: "Demo Account",
+      email: "demo@cleartax.com",
+    };
+    localStorage.setItem("cleartax_user", JSON.stringify(fallbackUser));
+    setUser(fallbackUser);
+    fetchInvoices(fallbackUser.id);
+  }, []);
+
+  // Fetch invoices for active user
+  const fetchInvoices = async (userId: string) => {
+    setIsLoadingInvoices(true);
+    try {
+      const response = await fetch(`/api/invoices?userId=${encodeURIComponent(userId)}`, {
+        headers: {
+          "x-user-id": userId,
+        },
+      });
 
       const result = await response.json();
-
       if (result.success) {
-        setInvoices(result.data);
+        setInvoices(result.data || []);
       }
     } catch (error) {
       console.error("Failed to fetch invoices:", error);
+    } finally {
+      setIsLoadingInvoices(false);
     }
   };
 
-  useEffect(() => {
-    fetchInvoices();
-  }, []);
+  const handleLogout = () => {
+    localStorage.removeItem("cleartax_user");
+    router.push("/login");
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -75,9 +121,7 @@ export default function Home() {
     }
   };
 
-  const handleFileChange = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       handleFile(e.target.files[0]);
     }
@@ -95,59 +139,50 @@ export default function Home() {
     setFile(selectedFile);
   };
 
-  // Temporary processing function
-  // We will connect this to POST /api/invoices/process next
- const startProcessing = async () => {
-  if (!file) return;
+  const startProcessing = async () => {
+    if (!file || !user) return;
 
-  try {
-    setIsProcessing(true);
-    setProgress(20);
+    try {
+      setIsProcessing(true);
+      setProgress(25);
 
-    const formData = new FormData();
-    formData.append("file", file);
+      const formData = new FormData();
+      formData.append("file", file);
 
-    const response = await fetch("/api/invoices/process", {
-      method: "POST",
-      body: formData,
-    });
+      const response = await fetch("/api/invoices/process", {
+        method: "POST",
+        headers: {
+          "x-user-id": user.id,
+        },
+        body: formData,
+      });
 
-    // Get response as text first
-    const text = await response.text();
+      const text = await response.text();
+      if (!text) {
+        throw new Error("Server returned an empty response");
+      }
 
-    // Check if the server returned anything
-    if (!text) {
-      throw new Error("Server returned an empty response");
+      const result = JSON.parse(text);
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to process invoices");
+      }
+
+      setProgress(100);
+
+      // Refresh invoices for active user
+      await fetchInvoices(user.id);
+    } catch (error) {
+      console.error("Processing error:", error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Something went wrong while processing invoices."
+      );
+    } finally {
+      setIsProcessing(false);
     }
-
-    const result = JSON.parse(text);
-
-    if (!response.ok || !result.success) {
-      throw new Error(result.message || "Failed to process invoices");
-    }
-
-    setProgress(100);
-
-    // Fetch updated invoices
-    const invoicesResponse = await fetch("/api/invoices");
-    const invoicesResult = await invoicesResponse.json();
-
-    if (invoicesResult.success) {
-      setInvoices(invoicesResult.data);
-    }
-
-  } catch (error) {
-    console.error("Processing error:", error);
-
-    alert(
-      error instanceof Error
-        ? error.message
-        : "Something went wrong while processing invoices."
-    );
-  } finally {
-    setIsProcessing(false);
-  }
-};
+  };
 
   const renderStatusBadge = (status: InvoiceStatus) => {
     switch (status) {
@@ -192,7 +227,7 @@ export default function Home() {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
-      transition: { staggerChildren: 0.2 },
+      transition: { staggerChildren: 0.15 },
     },
   };
 
@@ -201,12 +236,78 @@ export default function Home() {
     show: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.5 },
+      transition: { duration: 0.4 },
     },
   };
 
   return (
-    <main className="container">
+    <main className="container" style={{ paddingTop: "2rem", paddingBottom: "4rem" }}>
+      {/* Top Navigation Bar with User Info */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "2rem",
+          padding: "1rem 1.5rem",
+          background: "rgba(255, 255, 255, 0.04)",
+          backdropFilter: "blur(12px)",
+          borderRadius: "1rem",
+          border: "1px solid var(--border)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <div
+            style={{
+              background: "rgba(16, 185, 129, 0.15)",
+              color: "var(--primary)",
+              padding: "0.5rem",
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <UserIcon size={20} />
+          </div>
+          <div>
+            <div style={{ fontWeight: 600, color: "#fff", fontSize: "0.95rem" }}>
+              {user?.name || "Account"}
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "var(--muted-foreground)" }}>
+              {user?.email || ""}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+          <button
+            onClick={handleLogout}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              background: "rgba(239, 68, 68, 0.1)",
+              color: "#f87171",
+              border: "1px solid rgba(239, 68, 68, 0.2)",
+              padding: "0.5rem 1rem",
+              borderRadius: "0.5rem",
+              fontSize: "0.875rem",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(239, 68, 68, 0.2)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(239, 68, 68, 0.1)";
+            }}
+          >
+            <LogOut size={16} /> Sign Out / Switch ID
+          </button>
+        </div>
+      </div>
+
       <motion.div
         className="card"
         variants={containerVariants}
@@ -218,7 +319,10 @@ export default function Home() {
         </motion.h1>
 
         <motion.p variants={itemVariants} className="subtitle">
-          Securely upload and process your invoices in the background.
+          Securely upload and process your invoices in the background for account:{" "}
+          <span style={{ color: "var(--primary)", fontWeight: 500 }}>
+            {user?.email}
+          </span>
         </motion.p>
 
         <AnimatePresence mode="wait">
@@ -233,9 +337,8 @@ export default function Home() {
                 scale: 0.95,
                 transition: { duration: 0.2 },
               }}
-              className={`upload-zone ${
-                isDragging ? "drag-active" : ""
-              }`}
+              className={`upload-zone ${isDragging ? "drag-active" : ""
+                }`}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
@@ -325,17 +428,39 @@ export default function Home() {
           )}
         </AnimatePresence>
 
-        {invoices.length > 0 && (
+        {invoices.length > 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="table-container"
           >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "1rem",
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: "1.1rem" }}>Invoices List</h3>
+              <span
+                style={{
+                  fontSize: "0.85rem",
+                  color: "var(--muted-foreground)",
+                  background: "rgba(255, 255, 255, 0.05)",
+                  padding: "0.25rem 0.75rem",
+                  borderRadius: "1rem",
+                }}
+              >
+                Total: {invoices.length}
+              </span>
+            </div>
             <table className="styled-table">
               <thead>
                 <tr>
                   <th>Invoice No.</th>
                   <th>Customer</th>
+                  <th>Date</th>
                   <th>Amount</th>
                   <th>Status</th>
                 </tr>
@@ -350,9 +475,13 @@ export default function Home() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.3 }}
                     >
-                      <td>{inv.invoiceNumber}</td>
+                      <td style={{ fontWeight: 600 }}>{inv.invoiceNumber}</td>
 
                       <td>{inv.customerName}</td>
+
+                      <td style={{ color: "var(--muted-foreground)", fontSize: "0.875rem" }}>
+                        {inv.invoiceDate}
+                      </td>
 
                       <td>
                         ₹{inv.amount.toLocaleString()}
@@ -373,6 +502,36 @@ export default function Home() {
               </tbody>
             </table>
           </motion.div>
+        ) : (
+          !isLoadingInvoices && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              style={{
+                marginTop: "2.5rem",
+                padding: "2.5rem 1.5rem",
+                textAlign: "center",
+                background: "rgba(255, 255, 255, 0.02)",
+                borderRadius: "0.75rem",
+                border: "1px dashed var(--border)",
+              }}
+            >
+              <FileText
+                size={32}
+                style={{
+                  margin: "0 auto 0.75rem auto",
+                  color: "var(--muted-foreground)",
+                  opacity: 0.6,
+                }}
+              />
+              <p style={{ color: "var(--muted-foreground)", fontSize: "0.95rem", margin: 0 }}>
+                No invoices found for this account ID.
+              </p>
+              <p style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
+                Upload a CSV file above to process and match invoices.
+              </p>
+            </motion.div>
+          )
         )}
 
         <AnimatePresence>
@@ -390,7 +549,9 @@ export default function Home() {
                 onClick={() => {
                   setFile(null);
                   setProgress(0);
-                  fetchInvoices();
+                  if (user) {
+                    fetchInvoices(user.id);
+                  }
                 }}
               >
                 Upload Another Batch

@@ -17,10 +17,20 @@ export default function LoginPage() {
     if (!email || !password) return;
     
     setIsLoading(true);
-    // Simulate API call for login
+    
+    // Save user session
+    const username = email.split("@")[0];
+    const user = {
+      id: email.trim().toLowerCase(),
+      name: username.charAt(0).toUpperCase() + username.slice(1),
+      email: email.trim(),
+    };
+
+    localStorage.setItem("cleartax_user", JSON.stringify(user));
+
     setTimeout(() => {
       router.push('/dashboard');
-    }, 800);
+    }, 500);
   };
 
   const containerVariants = {
