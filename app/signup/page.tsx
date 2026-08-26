@@ -18,10 +18,20 @@ export default function SignupPage() {
     if (!name || !email || !password) return;
     
     setIsLoading(true);
-    // Simulate API call for signup
+    
+    // Save user session
+    const user = {
+      id: email.trim().toLowerCase(),
+      name: name.trim(),
+      email: email.trim(),
+      createdAt: new Date().toISOString(),
+    };
+
+    localStorage.setItem("cleartax_user", JSON.stringify(user));
+
     setTimeout(() => {
       router.push('/dashboard');
-    }, 800);
+    }, 500);
   };
 
   const containerVariants = {

@@ -1,16 +1,24 @@
 import { NextResponse } from "next/server";
-import { invoices } from "../../../lib/invoices";
+import {
+  getUserInvoices,
+  addUserInvoice,
+  getUserIdFromRequest,
+} from "../../../lib/invoices";
 
-export async function GET() {
+export async function GET(request) {
+  const userId = getUserIdFromRequest(request);
+  const userInvoices = getUserInvoices(userId);
+
   return NextResponse.json({
     success: true,
-    count: invoices.length,
-    data: invoices,
+    count: userInvoices.length,
+    data: userInvoices,
   });
 }
 
 export async function POST(request) {
   try {
+    const userId = getUserIdFromRequest(request);
     const body = await request.json();
 
     const {
@@ -37,7 +45,8 @@ export async function POST(request) {
       );
     }
 
-    const existingInvoice = invoices.find(
+    const userInvoices = getUserInvoices(userId);
+    const existingInvoice = userInvoices.find(
       (invoice) => invoice.invoiceNumber === invoiceNumber
     );
 
@@ -51,8 +60,7 @@ export async function POST(request) {
       );
     }
 
-    const newInvoice = {
-      id: invoices.length + 1,
+    const newInvoice = addUserInvoice(userId, {
       invoiceNumber,
       customerName,
       invoiceDate,
@@ -60,9 +68,7 @@ export async function POST(request) {
       gstNumber,
       status: "pending",
       error: null,
-    };
-
-    invoices.push(newInvoice);
+    });
 
     return NextResponse.json(
       {
@@ -81,4 +87,4 @@ export async function POST(request) {
       { status: 400 }
     );
   }
-}
+}
