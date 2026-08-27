@@ -65,16 +65,9 @@ export default function DashboardPage() {
       // Fallback
     }
 
-    // Default fallback session if accessed directly
-    const fallbackUser: UserSession = {
-      id: "demo@cleartax.com",
-      name: "Demo Account",
-      email: "demo@cleartax.com",
-    };
-    localStorage.setItem("cleartax_user", JSON.stringify(fallbackUser));
-    setUser(fallbackUser);
-    fetchInvoices(fallbackUser.id);
-  }, []);
+    // If no active session, redirect to login
+    router.push("/login");
+  }, [router]);
 
   // Fetch invoices for active user
   const fetchInvoices = async (userId: string) => {

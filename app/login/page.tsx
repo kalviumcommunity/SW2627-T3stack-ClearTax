@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { LogIn, User } from "lucide-react";
+import { LogIn, User, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -11,26 +11,46 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage("");
     if (!email || !password) return;
-    
+
     setIsLoading(true);
-    
-    // Save user session
-    const username = email.split("@")[0];
-    const user = {
-      id: email.trim().toLowerCase(),
-      name: username.charAt(0).toUpperCase() + username.slice(1),
-      email: email.trim(),
-    };
 
-    localStorage.setItem("cleartax_user", JSON.stringify(user));
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+        }),
+      });
 
-    setTimeout(() => {
-      router.push('/dashboard');
-    }, 500);
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Failed to log in");
+      }
+
+      // Save user session in localStorage
+      localStorage.setItem("cleartax_user", JSON.stringify(data.user));
+
+      router.push("/dashboard");
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setErrorMessage(err.message);
+      } else {
+        setErrorMessage("An error occurred during login");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const containerVariants = {
@@ -56,9 +76,27 @@ export default function LoginPage() {
         <h2 style={{ textAlign: 'center', fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem', color: '#fff' }}>
           Welcome Back
         </h2>
-        <p style={{ textAlign: 'center', color: 'var(--muted-foreground)', marginBottom: '2.5rem' }}>
+        <p style={{ textAlign: 'center', color: 'var(--muted-foreground)', marginBottom: '2rem' }}>
           Sign in to your ClearTax account.
         </p>
+
+        {errorMessage && (
+          <div style={{
+            background: "rgba(239, 68, 68, 0.15)",
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            color: "#fca5a5",
+            padding: "0.75rem 1rem",
+            borderRadius: "0.5rem",
+            marginBottom: "1.5rem",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            fontSize: "0.875rem"
+          }}>
+            <AlertCircle size={18} style={{ flexShrink: 0 }} />
+            <span>{errorMessage}</span>
+          </div>
+        )}
 
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <div>
@@ -92,7 +130,6 @@ export default function LoginPage() {
               <label style={{ fontSize: '0.875rem', color: '#cbd5e1', fontWeight: 500 }}>
                 Password
               </label>
-              <a href="#" style={{ fontSize: '0.875rem', color: 'var(--primary)', textDecoration: 'none' }}>Forgot password?</a>
             </div>
             <input 
               type="password" 
@@ -120,7 +157,7 @@ export default function LoginPage() {
             type="submit"
             className="btn-primary" 
             disabled={isLoading || !email || !password}
-            style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', padding: '1rem', marginTop: '0.5rem' }}
+            style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', padding: '1rem', marginTop: '0.5rem', cursor: isLoading ? 'not-allowed' : 'pointer' }}
           >
             {isLoading ? "Signing in..." : (
               <>Sign In <LogIn size={18} /></>

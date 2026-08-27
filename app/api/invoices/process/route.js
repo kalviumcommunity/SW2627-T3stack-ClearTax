@@ -94,7 +94,7 @@ export async function POST(request) {
       (h) => h.includes("gst") || h.includes("tax")
     );
 
-    const userInvoices = getUserInvoices(userId);
+    const userInvoices = await getUserInvoices(userId);
 
     // Process each row
     for (let i = 1; i < lines.length; i++) {
@@ -132,7 +132,7 @@ export async function POST(request) {
       );
 
       if (existing) {
-        updateUserInvoice(userId, existing.id, {
+        await updateUserInvoice(userId, existing.id, {
           customerName,
           invoiceDate,
           amount: isNaN(amount) ? 0 : amount,
@@ -141,7 +141,7 @@ export async function POST(request) {
           error,
         });
       } else {
-        addUserInvoice(userId, {
+        await addUserInvoice(userId, {
           invoiceNumber,
           customerName,
           invoiceDate,
@@ -153,7 +153,7 @@ export async function POST(request) {
       }
     }
 
-    const updatedInvoices = getUserInvoices(userId);
+    const updatedInvoices = await getUserInvoices(userId);
 
     return NextResponse.json({
       success: true,
@@ -175,7 +175,7 @@ export async function POST(request) {
 
 export async function GET(request) {
   const userId = getUserIdFromRequest(request);
-  const userInvoices = getUserInvoices(userId);
+  const userInvoices = await getUserInvoices(userId);
   const total = userInvoices.length;
 
   const processed = userInvoices.filter(
@@ -206,4 +206,4 @@ export async function GET(request) {
       percentage,
     },
   });
-}
+}
