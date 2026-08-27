@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import {
-  getUserInvoices,
+  getInvoiceById,
   updateUserInvoice,
   getUserIdFromRequest,
 } from "@/lib/invoices";
@@ -8,11 +8,7 @@ import {
 export async function GET(request, { params }) {
   const { id } = await params;
   const userId = getUserIdFromRequest(request);
-  const userInvoices = getUserInvoices(userId);
-
-  const invoice = userInvoices.find(
-    (item) => item.id === Number(id)
-  );
+  const invoice = await getInvoiceById(userId, id);
 
   if (!invoice) {
     return NextResponse.json(
@@ -34,11 +30,7 @@ export async function PATCH(request, { params }) {
   const { id } = await params;
   const invoiceId = Number(id);
   const userId = getUserIdFromRequest(request);
-  const userInvoices = getUserInvoices(userId);
-
-  const invoice = userInvoices.find(
-    (item) => item.id === invoiceId
-  );
+  const invoice = await getInvoiceById(userId, invoiceId);
 
   if (!invoice) {
     return NextResponse.json(
@@ -76,7 +68,7 @@ export async function PATCH(request, { params }) {
     if (status) updates.status = status;
     if (error !== undefined) updates.error = error;
 
-    const updated = updateUserInvoice(userId, invoiceId, updates);
+    const updated = await updateUserInvoice(userId, invoiceId, updates);
 
     return NextResponse.json({
       success: true,
@@ -92,4 +84,4 @@ export async function PATCH(request, { params }) {
       { status: 400 }
     );
   }
-}
+}
