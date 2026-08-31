@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { LogIn, User, AlertCircle } from "lucide-react";
+import { LogIn, User, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -10,6 +10,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -131,26 +132,50 @@ export default function LoginPage() {
                 Password
               </label>
             </div>
-            <input 
-              type="password" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••" 
-              required
-              style={{
-                width: '100%',
-                padding: '1rem',
-                borderRadius: '0.5rem',
-                border: '1px solid var(--border)',
-                background: 'rgba(0, 0, 0, 0.3)',
-                color: '#fff',
-                fontSize: '1rem',
-                outline: 'none',
-                transition: 'border-color 0.2s'
-              }}
-              onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
-              onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
-            />
+            <div style={{ position: 'relative' }}>
+              <input 
+                type={showPassword ? "text" : "password"} 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••" 
+                required
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  paddingRight: '3rem',
+                  borderRadius: '0.5rem',
+                  border: '1px solid var(--border)',
+                  background: 'rgba(0, 0, 0, 0.3)',
+                  color: '#fff',
+                  fontSize: '1rem',
+                  outline: 'none',
+                  transition: 'border-color 0.2s'
+                }}
+                onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
+                onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                style={{
+                  position: 'absolute',
+                  right: '1rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--muted-foreground)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0
+                }}
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
           </div>
 
           <button 
@@ -166,7 +191,7 @@ export default function LoginPage() {
         </form>
 
         <p style={{ textAlign: 'center', marginTop: '2rem', color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <Link href="/signup" style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}>
             Sign up
           </Link>

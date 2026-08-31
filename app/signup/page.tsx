@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { UserPlus, Briefcase, AlertCircle } from "lucide-react";
+import { UserPlus, Briefcase, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -11,6 +11,7 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -157,26 +158,50 @@ export default function SignupPage() {
             <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: '#cbd5e1', fontWeight: 500 }}>
               Password
             </label>
-            <input 
-              type="password" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••" 
-              required
-              style={{
-                width: '100%',
-                padding: '1rem',
-                borderRadius: '0.5rem',
-                border: '1px solid var(--border)',
-                background: 'rgba(0, 0, 0, 0.3)',
-                color: '#fff',
-                fontSize: '1rem',
-                outline: 'none',
-                transition: 'border-color 0.2s'
-              }}
-              onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
-              onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
-            />
+            <div style={{ position: 'relative' }}>
+              <input 
+                type={showPassword ? "text" : "password"} 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••" 
+                required
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  paddingRight: '3rem',
+                  borderRadius: '0.5rem',
+                  border: '1px solid var(--border)',
+                  background: 'rgba(0, 0, 0, 0.3)',
+                  color: '#fff',
+                  fontSize: '1rem',
+                  outline: 'none',
+                  transition: 'border-color 0.2s'
+                }}
+                onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
+                onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                style={{
+                  position: 'absolute',
+                  right: '1rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--muted-foreground)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0
+                }}
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
           </div>
 
           <button 
