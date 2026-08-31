@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { pool } from "../../../lib/db";
+import { query } from "../../../lib/db";
 
 function getUserIdFromRequest(request) {
   // Check header first
@@ -29,7 +29,7 @@ export async function GET(request) {
   try {
     const userId = getUserIdFromRequest(request);
 
-    const result = await pool.query(
+    const result = await query(
       `
       SELECT
         id,
@@ -115,7 +115,7 @@ export async function POST(request) {
     }
 
     // Check duplicate invoice number for this user
-    const existingInvoice = await pool.query(
+    const existingInvoice = await query(
       `
       SELECT id
       FROM invoices
@@ -137,7 +137,7 @@ export async function POST(request) {
     }
 
     // Insert invoice into PostgreSQL
-    const result = await pool.query(
+    const result = await query(
       `
       INSERT INTO invoices (
         user_id,

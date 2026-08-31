@@ -9,6 +9,8 @@ import {
   FileText,
   LogOut,
   User as UserIcon,
+  History,
+  X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
@@ -46,6 +48,9 @@ export default function DashboardPage() {
   const [progress, setProgress] = useState(0);
   const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
   const [isLoadingInvoices, setIsLoadingInvoices] = useState(true);
+
+  // Minimal History state
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -235,7 +240,7 @@ export default function DashboardPage() {
 
   return (
     <main className="container" style={{ paddingTop: "2rem", paddingBottom: "4rem" }}>
-      {/* Top Navigation Bar with User Info */}
+      {/* Top Navigation Bar with User Info & Actions */}
       <div
         style={{
           display: "flex",
@@ -273,7 +278,33 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <button
+            onClick={() => setIsHistoryOpen(true)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              background: "rgba(16, 185, 129, 0.15)",
+              color: "var(--primary)",
+              border: "1px solid rgba(16, 185, 129, 0.3)",
+              padding: "0.5rem 1rem",
+              borderRadius: "0.5rem",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(16, 185, 129, 0.25)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(16, 185, 129, 0.15)";
+            }}
+          >
+            <History size={16} /> History
+          </button>
+
           <button
             onClick={handleLogout}
             style={{
@@ -296,7 +327,7 @@ export default function DashboardPage() {
               e.currentTarget.style.background = "rgba(239, 68, 68, 0.1)";
             }}
           >
-            <LogOut size={16} /> Sign Out / Switch ID
+            <LogOut size={16} /> Sign Out
           </button>
         </div>
       </div>
@@ -330,8 +361,7 @@ export default function DashboardPage() {
                 scale: 0.95,
                 transition: { duration: 0.2 },
               }}
-              className={`upload-zone ${isDragging ? "drag-active" : ""
-                }`}
+              className={`upload-zone ${isDragging ? "drag-active" : ""}`}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
@@ -435,18 +465,47 @@ export default function DashboardPage() {
                 marginBottom: "1rem",
               }}
             >
-              <h3 style={{ margin: 0, fontSize: "1.1rem" }}>Invoices List</h3>
-              <span
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                <h3 style={{ margin: 0, fontSize: "1.1rem" }}>Invoices List</h3>
+                <span
+                  style={{
+                    fontSize: "0.85rem",
+                    color: "var(--muted-foreground)",
+                    background: "rgba(255, 255, 255, 0.05)",
+                    padding: "0.25rem 0.75rem",
+                    borderRadius: "1rem",
+                  }}
+                >
+                  Total: {invoices.length}
+                </span>
+              </div>
+
+              <button
+                onClick={() => setIsHistoryOpen(true)}
                 style={{
-                  fontSize: "0.85rem",
-                  color: "var(--muted-foreground)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.4rem",
                   background: "rgba(255, 255, 255, 0.05)",
-                  padding: "0.25rem 0.75rem",
-                  borderRadius: "1rem",
+                  color: "#cbd5e1",
+                  border: "1px solid var(--border)",
+                  padding: "0.35rem 0.75rem",
+                  borderRadius: "0.5rem",
+                  fontSize: "0.8rem",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                  e.currentTarget.style.color = "#fff";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                  e.currentTarget.style.color = "#cbd5e1";
                 }}
               >
-                Total: {invoices.length}
-              </span>
+                <History size={14} /> History
+              </button>
             </div>
             <table className="styled-table">
               <thead>
@@ -553,6 +612,132 @@ export default function DashboardPage() {
           )}
         </AnimatePresence>
       </motion.div>
+
+      {/* Minimal History Slide-Over Drawer Modal */}
+      <AnimatePresence>
+        {isHistoryOpen && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 50,
+              display: "flex",
+              justifyContent: "flex-end",
+              background: "rgba(0, 0, 0, 0.7)",
+              backdropFilter: "blur(4px)",
+            }}
+            onClick={() => setIsHistoryOpen(false)}
+          >
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 220 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: "100%",
+                maxWidth: "480px",
+                height: "100vh",
+                background: "#0d1527",
+                borderLeft: "1px solid var(--border)",
+                display: "flex",
+                flexDirection: "column",
+                boxShadow: "-10px 0 30px rgba(0, 0, 0, 0.6)",
+                overflow: "hidden",
+              }}
+            >
+              {/* Drawer Header */}
+              <div
+                style={{
+                  padding: "1.5rem",
+                  borderBottom: "1px solid var(--border)",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  background: "rgba(15, 23, 42, 0.8)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                  <History size={22} style={{ color: "var(--primary)" }} />
+                  <h2 style={{ fontSize: "1.25rem", fontWeight: 700, margin: 0, color: "#fff" }}>
+                    Invoice History
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setIsHistoryOpen(false)}
+                  style={{
+                    background: "rgba(255, 255, 255, 0.05)",
+                    border: "1px solid var(--border)",
+                    color: "#94a3b8",
+                    padding: "0.5rem",
+                    borderRadius: "0.5rem",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "#94a3b8")}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Minimal Invoices List (Only the invoices) */}
+              <div style={{ flex: 1, overflowY: "auto", padding: "1.25rem 1.5rem" }}>
+                {invoices.length > 0 ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                    {invoices.map((inv) => (
+                      <div
+                        key={inv.id}
+                        style={{
+                          padding: "1rem",
+                          borderRadius: "0.6rem",
+                          background: "rgba(255, 255, 255, 0.02)",
+                          border: "1px solid var(--border)",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 600, color: "#fff", fontSize: "0.95rem" }}>
+                            {inv.invoiceNumber}
+                          </div>
+                          <div style={{ fontSize: "0.85rem", color: "var(--muted-foreground)", marginTop: "0.2rem" }}>
+                            {inv.customerName}
+                          </div>
+                        </div>
+
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.3rem" }}>
+                          <span style={{ fontWeight: 600, color: "#10b981", fontSize: "0.95rem" }}>
+                            ₹{inv.amount.toLocaleString()}
+                          </span>
+                          {renderStatusBadge(inv.status)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      textAlign: "center",
+                      padding: "4rem 1rem",
+                      color: "var(--muted-foreground)",
+                    }}
+                  >
+                    <FileText size={36} style={{ margin: "0 auto 1rem auto", opacity: 0.4 }} />
+                    <p style={{ margin: 0, fontSize: "0.95rem", color: "#94a3b8" }}>
+                      No invoices found in history.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }

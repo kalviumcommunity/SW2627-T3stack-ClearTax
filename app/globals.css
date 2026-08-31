@@ -4,7 +4,8 @@
   --card: rgba(20, 25, 22, 0.6);
   --card-foreground: #f8fafc;
   --border: rgba(255, 255, 255, 0.1);
-  --primary: #10b981; /* Emerald */
+  --primary: #10b981;
+  /* Emerald */
   --primary-foreground: #ffffff;
   --muted: rgba(255, 255, 255, 0.05);
   --muted-foreground: #94a3b8;
@@ -42,11 +43,9 @@ body::before {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: radial-gradient(
-    600px circle at var(--mouse-x) var(--mouse-y),
-    rgba(16, 185, 129, 0.15),
-    transparent 40%
-  );
+  background: radial-gradient(600px circle at var(--mouse-x) var(--mouse-y),
+      rgba(16, 185, 129, 0.15),
+      transparent 40%);
   pointer-events: none;
   z-index: 0;
 }
@@ -109,7 +108,8 @@ p.subtitle {
   overflow: hidden;
 }
 
-.upload-zone:hover, .upload-zone.drag-active {
+.upload-zone:hover,
+.upload-zone.drag-active {
   border-color: var(--primary);
   background: rgba(139, 92, 246, 0.1);
   transform: scale(1.02);
@@ -124,8 +124,15 @@ p.subtitle {
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 .btn-primary {
