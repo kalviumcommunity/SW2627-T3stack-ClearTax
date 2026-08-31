@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   UploadCloud,
   CheckCircle2,
@@ -54,28 +54,8 @@ export default function DashboardPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Check user session
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("cleartax_user");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && parsed.id) {
-          setUser(parsed);
-          fetchInvoices(parsed.id);
-          return;
-        }
-      }
-    } catch {
-      // Fallback
-    }
-
-    // If no active session, redirect to login
-    router.push("/login");
-  }, [router]);
-
   // Fetch invoices for active user
-  const fetchInvoices = async (userId: string) => {
+  const fetchInvoices = useCallback(async (userId: string) => {
     setIsLoadingInvoices(true);
     try {
       const response = await fetch(`/api/invoices?userId=${encodeURIComponent(userId)}`, {
@@ -93,7 +73,29 @@ export default function DashboardPage() {
     } finally {
       setIsLoadingInvoices(false);
     }
-  };
+  }, []);
+
+  // Check user session
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("cleartax_user");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && parsed.id) {
+          queueMicrotask(() => {
+            setUser(parsed);
+            fetchInvoices(parsed.id);
+          });
+          return;
+        }
+      }
+    } catch {
+      // Fallback
+    }
+
+    // If no active session, redirect to login
+    router.push("/login");
+  }, [router, fetchInvoices]);
 
   const handleLogout = () => {
     localStorage.removeItem("cleartax_user");
