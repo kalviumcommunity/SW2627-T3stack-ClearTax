@@ -170,6 +170,10 @@ export default function DashboardPage() {
 
       setProgress(100);
 
+      if (result.data && Array.isArray(result.data)) {
+        setInvoices(result.data);
+      }
+
       // Refresh invoices for active user
       await fetchInvoices(user.id);
     } catch (error) {
