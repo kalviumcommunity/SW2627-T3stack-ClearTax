@@ -479,33 +479,6 @@ export default function DashboardPage() {
                   Total: {invoices.length}
                 </span>
               </div>
-
-              <button
-                onClick={() => setIsHistoryOpen(true)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.4rem",
-                  background: "rgba(255, 255, 255, 0.05)",
-                  color: "#cbd5e1",
-                  border: "1px solid var(--border)",
-                  padding: "0.35rem 0.75rem",
-                  borderRadius: "0.5rem",
-                  fontSize: "0.8rem",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
-                  e.currentTarget.style.color = "#fff";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
-                  e.currentTarget.style.color = "#cbd5e1";
-                }}
-              >
-                <History size={14} /> History
-              </button>
             </div>
             <table className="styled-table">
               <thead>
