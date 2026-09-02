@@ -49,6 +49,15 @@ export default function DashboardPage() {
   const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
   const [isLoadingInvoices, setIsLoadingInvoices] = useState(true);
 
+  // Pagination state -prateek  
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEM_PER_PAGE = 15;
+
+  const totalPages = Math.ceil(invoices.length / ITEM_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEM_PER_PAGE;
+  const endIndex = startIndex + ITEM_PER_PAGE;
+  const currentInvoices = invoices.slice(startIndex, endIndex);
+
   // Minimal History state
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
@@ -172,6 +181,7 @@ export default function DashboardPage() {
 
       if (result.data && Array.isArray(result.data)) {
         setInvoices(result.data);
+        setCurrentPage(1);
       }
 
       // Refresh invoices for active user
@@ -482,7 +492,8 @@ export default function DashboardPage() {
                     borderRadius: "1rem",
                   }}
                 >
-                  Total: {invoices.length}
+                  Showing {startIndex + 1}–{Math.min(endIndex, invoices.length)} of{" "}
+                  {invoices.length}
                 </span>
               </div>
             </div>
@@ -499,7 +510,7 @@ export default function DashboardPage() {
 
               <tbody>
                 <AnimatePresence>
-                  {invoices.map((inv) => (
+                  {currentInvoices.map((inv) => (
                     <motion.tr
                       key={inv.id}
                       initial={{ opacity: 0, x: -10 }}
@@ -532,6 +543,105 @@ export default function DashboardPage() {
                 </AnimatePresence>
               </tbody>
             </table>
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  marginTop: "1.5rem",
+                  flexWrap: "wrap",
+                }}
+              >
+                {/* Previous Button */}
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                  }
+                  disabled={currentPage === 1}
+                  style={{
+                    padding: "0.5rem 0.9rem",
+                    borderRadius: "0.5rem",
+                    border: "1px solid var(--border)",
+                    background:
+                      currentPage === 1
+                        ? "rgba(139, 121, 104, 0.05)"
+                        : "white",
+                    color:
+                      currentPage === 1
+                        ? "rgba(74, 64, 54, 0.4)"
+                        : "#4a4036",
+                    cursor:
+                      currentPage === 1
+                        ? "not-allowed"
+                        : "pointer",
+                  }}
+                >
+                  Previous
+                </button>
+
+                {/* Page Numbers */}
+                {Array.from({ length: totalPages }, (_, index) => index + 1).map(
+                  (page) => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      style={{
+                        minWidth: "40px",
+                        padding: "0.5rem 0.75rem",
+                        borderRadius: "0.5rem",
+                        border: "1px solid var(--border)",
+                        background:
+                          currentPage === page
+                            ? "var(--primary)"
+                            : "white",
+                        color:
+                          currentPage === page
+                            ? "white"
+                            : "#4a4036",
+                        fontWeight:
+                          currentPage === page ? 700 : 500,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {page}
+                    </button>
+                  )
+                )}
+
+                {/* Next Button */}
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) =>
+                      Math.min(prev + 1, totalPages)
+                    )
+                  }
+                  disabled={currentPage === totalPages}
+                  style={{
+                    padding: "0.5rem 0.9rem",
+                    borderRadius: "0.5rem",
+                    border: "1px solid var(--border)",
+                    background:
+                      currentPage === totalPages
+                        ? "rgba(139, 121, 104, 0.05)"
+                        : "white",
+                    color:
+                      currentPage === totalPages
+                        ? "rgba(74, 64, 54, 0.4)"
+                        : "#4a4036",
+                    cursor:
+                      currentPage === totalPages
+                        ? "not-allowed"
+                        : "pointer",
+                  }}
+                >
+                  Next
+                </button>
+              </div>
+            )}
+
           </motion.div>
         ) : (
           !isLoadingInvoices && (
