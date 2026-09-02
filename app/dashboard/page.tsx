@@ -254,7 +254,7 @@ export default function DashboardPage() {
           alignItems: "center",
           marginBottom: "2rem",
           padding: "1rem 1.5rem",
-          background: "rgba(255, 255, 255, 0.04)",
+          background: "rgba(139, 121, 104, 0.05)",
           backdropFilter: "blur(12px)",
           borderRadius: "1rem",
           border: "1px solid var(--border)",
@@ -263,7 +263,7 @@ export default function DashboardPage() {
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
           <div
             style={{
-              background: "rgba(16, 185, 129, 0.15)",
+              background: "rgba(181, 154, 122, 0.15)",
               color: "var(--primary)",
               padding: "0.5rem",
               borderRadius: "50%",
@@ -275,7 +275,7 @@ export default function DashboardPage() {
             <UserIcon size={20} />
           </div>
           <div>
-            <div style={{ fontWeight: 600, color: "#fff", fontSize: "0.95rem" }}>
+            <div style={{ fontWeight: 600, color: "#4a4036", fontSize: "0.95rem" }}>
               {user?.name || "Account"}
             </div>
             <div style={{ fontSize: "0.8rem", color: "var(--muted-foreground)" }}>
@@ -291,9 +291,9 @@ export default function DashboardPage() {
               display: "flex",
               alignItems: "center",
               gap: "0.5rem",
-              background: "rgba(16, 185, 129, 0.15)",
+              background: "rgba(181, 154, 122, 0.15)",
               color: "var(--primary)",
-              border: "1px solid rgba(16, 185, 129, 0.3)",
+              border: "1px solid rgba(181, 154, 122, 0.3)",
               padding: "0.5rem 1rem",
               borderRadius: "0.5rem",
               fontSize: "0.875rem",
@@ -302,10 +302,10 @@ export default function DashboardPage() {
               transition: "all 0.2s ease",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(16, 185, 129, 0.25)";
+              e.currentTarget.style.background = "rgba(181, 154, 122, 0.25)";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = "rgba(16, 185, 129, 0.15)";
+              e.currentTarget.style.background = "rgba(181, 154, 122, 0.15)";
             }}
           >
             <History size={16} /> History
@@ -477,7 +477,7 @@ export default function DashboardPage() {
                   style={{
                     fontSize: "0.85rem",
                     color: "var(--muted-foreground)",
-                    background: "rgba(255, 255, 255, 0.05)",
+                    background: "rgba(139, 121, 104, 0.05)",
                     padding: "0.25rem 0.75rem",
                     borderRadius: "1rem",
                   }}
@@ -542,7 +542,7 @@ export default function DashboardPage() {
                 marginTop: "2.5rem",
                 padding: "2.5rem 1.5rem",
                 textAlign: "center",
-                background: "rgba(255, 255, 255, 0.02)",
+                background: "rgba(139, 121, 104, 0.03)",
                 borderRadius: "0.75rem",
                 border: "1px dashed var(--border)",
               }}
@@ -558,7 +558,7 @@ export default function DashboardPage() {
               <p style={{ color: "var(--muted-foreground)", fontSize: "0.95rem", margin: 0 }}>
                 No invoices found for this account ID.
               </p>
-              <p style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
+              <p style={{ color: "rgba(74, 64, 54, 0.5)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
                 Upload a CSV file above to process and match invoices.
               </p>
             </motion.div>
@@ -602,7 +602,7 @@ export default function DashboardPage() {
               zIndex: 50,
               display: "flex",
               justifyContent: "flex-end",
-              background: "rgba(0, 0, 0, 0.7)",
+              background: "rgba(255, 255, 255, 0.5)",
               backdropFilter: "blur(4px)",
             }}
             onClick={() => setIsHistoryOpen(false)}
@@ -617,11 +617,11 @@ export default function DashboardPage() {
                 width: "100%",
                 maxWidth: "480px",
                 height: "100vh",
-                background: "#0d1527",
+                background: "#fdfbf7",
                 borderLeft: "1px solid var(--border)",
                 display: "flex",
                 flexDirection: "column",
-                boxShadow: "-10px 0 30px rgba(0, 0, 0, 0.6)",
+                boxShadow: "-10px 0 30px rgba(139, 121, 104, 0.2)",
                 overflow: "hidden",
               }}
             >
@@ -633,21 +633,21 @@ export default function DashboardPage() {
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  background: "rgba(15, 23, 42, 0.8)",
+                  background: "rgba(139, 121, 104, 0.1)",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
                   <History size={22} style={{ color: "var(--primary)" }} />
-                  <h2 style={{ fontSize: "1.25rem", fontWeight: 700, margin: 0, color: "#fff" }}>
+                  <h2 style={{ fontSize: "1.25rem", fontWeight: 700, margin: 0, color: "#4a4036" }}>
                     Invoice History
                   </h2>
                 </div>
                 <button
                   onClick={() => setIsHistoryOpen(false)}
                   style={{
-                    background: "rgba(255, 255, 255, 0.05)",
+                    background: "rgba(139, 121, 104, 0.05)",
                     border: "1px solid var(--border)",
-                    color: "#94a3b8",
+                    color: "#8b7968",
                     padding: "0.5rem",
                     borderRadius: "0.5rem",
                     cursor: "pointer",
@@ -656,8 +656,8 @@ export default function DashboardPage() {
                     justifyContent: "center",
                     transition: "all 0.2s ease",
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "#94a3b8")}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "#4a4036")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "#8b7968")}
                 >
                   <X size={18} />
                 </button>
@@ -673,7 +673,7 @@ export default function DashboardPage() {
                         style={{
                           padding: "1rem",
                           borderRadius: "0.6rem",
-                          background: "rgba(255, 255, 255, 0.02)",
+                          background: "rgba(139, 121, 104, 0.03)",
                           border: "1px solid var(--border)",
                           display: "flex",
                           justifyContent: "space-between",
@@ -681,7 +681,7 @@ export default function DashboardPage() {
                         }}
                       >
                         <div>
-                          <div style={{ fontWeight: 600, color: "#fff", fontSize: "0.95rem" }}>
+                          <div style={{ fontWeight: 600, color: "#4a4036", fontSize: "0.95rem" }}>
                             {inv.invoiceNumber}
                           </div>
                           <div style={{ fontSize: "0.85rem", color: "var(--muted-foreground)", marginTop: "0.2rem" }}>
@@ -690,7 +690,7 @@ export default function DashboardPage() {
                         </div>
 
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.3rem" }}>
-                          <span style={{ fontWeight: 600, color: "#10b981", fontSize: "0.95rem" }}>
+                          <span style={{ fontWeight: 600, color: "#b59a7a", fontSize: "0.95rem" }}>
                             ₹{inv.amount.toLocaleString()}
                           </span>
                           {renderStatusBadge(inv.status)}
@@ -707,7 +707,7 @@ export default function DashboardPage() {
                     }}
                   >
                     <FileText size={36} style={{ margin: "0 auto 1rem auto", opacity: 0.4 }} />
-                    <p style={{ margin: 0, fontSize: "0.95rem", color: "#94a3b8" }}>
+                    <p style={{ margin: 0, fontSize: "0.95rem", color: "#8b7968" }}>
                       No invoices found in history.
                     </p>
                   </div>

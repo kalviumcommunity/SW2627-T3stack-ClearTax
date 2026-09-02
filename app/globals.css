@@ -1,14 +1,14 @@
 :root {
-  --background: #020604;
-  --foreground: #f8fafc;
-  --card: rgba(20, 25, 22, 0.6);
-  --card-foreground: #f8fafc;
-  --border: rgba(255, 255, 255, 0.1);
-  --primary: #10b981;
-  /* Emerald */
+  --background: #fdfbf7;
+  --foreground: #4a4036;
+  --card: rgba(255, 255, 255, 0.7);
+  --card-foreground: #4a4036;
+  --border: rgba(139, 121, 104, 0.2);
+  --primary: #b59a7a;
+  /* Beige */
   --primary-foreground: #ffffff;
-  --muted: rgba(255, 255, 255, 0.05);
-  --muted-foreground: #94a3b8;
+  --muted: rgba(139, 121, 104, 0.1);
+  --muted-foreground: #8b7968;
   --success: #10b981;
   --error: #ef4444;
   --warning: #f59e0b;
@@ -44,7 +44,7 @@ body::before {
   width: 100vw;
   height: 100vh;
   background: radial-gradient(600px circle at var(--mouse-x) var(--mouse-y),
-      rgba(16, 185, 129, 0.15),
+      rgba(181, 154, 122, 0.15),
       transparent 40%);
   pointer-events: none;
   z-index: 0;
@@ -56,7 +56,7 @@ h1 {
   font-weight: 800;
   letter-spacing: -0.025em;
   margin-bottom: 0.5rem;
-  background: linear-gradient(135deg, #ffffff, #94a3b8);
+  background: linear-gradient(135deg, #4a4036, #8b7968);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -88,18 +88,18 @@ p.subtitle {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 3rem;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 25px 50px -12px rgba(139, 121, 104, 0.2);
 }
 
 /* Upload Zone */
 .upload-zone {
-  border: 2px dashed rgba(255, 255, 255, 0.2);
+  border: 2px dashed rgba(139, 121, 104, 0.3);
   border-radius: var(--radius);
   padding: 4rem 2rem;
   text-align: center;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(139, 121, 104, 0.05);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -111,7 +111,7 @@ p.subtitle {
 .upload-zone:hover,
 .upload-zone.drag-active {
   border-color: var(--primary);
-  background: rgba(139, 92, 246, 0.1);
+  background: rgba(181, 154, 122, 0.15);
   transform: scale(1.02);
 }
 
@@ -145,13 +145,13 @@ p.subtitle {
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 1rem;
-  box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.39);
+  box-shadow: 0 4px 14px 0 rgba(181, 154, 122, 0.39);
 }
 
 .btn-primary:hover {
-  background: #059669;
+  background: #9c8164;
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+  box-shadow: 0 6px 20px rgba(181, 154, 122, 0.5);
 }
 
 .btn-primary:active {
@@ -177,23 +177,23 @@ p.subtitle {
   justify-content: space-between;
   margin-bottom: 1rem;
   font-weight: 500;
-  color: #e2e8f0;
+  color: #4a4036;
 }
 
 .progress-bar-bg {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(139, 121, 104, 0.15);
   height: 0.75rem;
   border-radius: 9999px;
   overflow: hidden;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 2px 4px rgba(139, 121, 104, 0.2);
 }
 
 .progress-bar-fill {
-  background: linear-gradient(90deg, var(--primary), #34d399);
+  background: linear-gradient(90deg, var(--primary), #e6d3ba);
   height: 100%;
   border-radius: 9999px;
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+  box-shadow: 0 0 10px rgba(181, 154, 122, 0.5);
 }
 
 /* Table Section */
@@ -202,7 +202,7 @@ p.subtitle {
   overflow-x: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .styled-table {
@@ -212,10 +212,10 @@ p.subtitle {
 }
 
 .styled-table th {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(139, 121, 104, 0.05);
   padding: 1.25rem 1rem;
   font-weight: 600;
-  color: #cbd5e1;
+  color: #6a5c4f;
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
@@ -228,7 +228,7 @@ p.subtitle {
 .styled-table td {
   padding: 1.25rem 1rem;
   border-bottom: 1px solid var(--border);
-  color: #f1f5f9;
+  color: #4a4036;
 }
 
 .styled-table tbody tr {
@@ -236,7 +236,7 @@ p.subtitle {
 }
 
 .styled-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(139, 121, 104, 0.05);
 }
 
 .styled-table tbody tr:last-child td {

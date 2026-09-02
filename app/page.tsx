@@ -25,13 +25,13 @@ export default function LandingPage() {
     <main className="container" style={{ justifyContent: 'center', alignItems: 'center', textAlign: 'center', minHeight: '100vh', display: 'flex' }}>
       <motion.div 
         className="card"
-        style={{ maxWidth: '800px', width: '100%', padding: '4rem 2rem', background: 'rgba(20, 25, 22, 0.4)' }}
+        style={{ maxWidth: '800px', width: '100%', padding: '4rem 2rem', background: 'rgba(255, 255, 255, 0.5)' }}
         variants={containerVariants}
         initial="hidden"
         animate="show"
       >
         <motion.div variants={itemVariants} style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
-          <div style={{ background: 'rgba(16, 185, 129, 0.2)', padding: '1rem', borderRadius: '50%', color: 'var(--primary)' }}>
+          <div style={{ background: 'rgba(139, 121, 104, 0.15)', padding: '1rem', borderRadius: '50%', color: 'var(--primary)' }}>
             <Database size={48} />
           </div>
         </motion.div>
@@ -56,11 +56,11 @@ export default function LandingPage() {
         </motion.div>
 
         <motion.div variants={containerVariants} style={{ display: 'flex', justifyContent: 'center', gap: '3rem', flexWrap: 'wrap' }}>
-          <motion.div variants={itemVariants} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#cbd5e1' }}>
+          <motion.div variants={itemVariants} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#6a5c4f' }}>
             <ShieldCheck size={24} style={{ color: 'var(--primary)' }} />
             <span style={{ fontWeight: 500 }}>Bank-Grade Security</span>
           </motion.div>
-          <motion.div variants={itemVariants} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#cbd5e1' }}>
+          <motion.div variants={itemVariants} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#6a5c4f' }}>
             <Zap size={24} style={{ color: 'var(--primary)' }} />
             <span style={{ fontWeight: 500 }}>Real-time Processing</span>
           </motion.div>
