@@ -69,7 +69,7 @@ export default function LoginPage() {
         animate="show"
       >
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem' }}>
-          <div style={{ background: 'rgba(16, 185, 129, 0.15)', padding: '1rem', borderRadius: '50%', color: 'var(--primary)' }}>
+          <div style={{ background: 'rgba(181, 154, 122, 0.15)', padding: '1rem', borderRadius: '50%', color: 'var(--primary)' }}>
             <User size={32} />
           </div>
         </div>
@@ -101,7 +101,7 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: '#cbd5e1', fontWeight: 500 }}>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: '#6a5c4f', fontWeight: 500 }}>
               Email Address
             </label>
             <input 
@@ -128,7 +128,7 @@ export default function LoginPage() {
 
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-              <label style={{ fontSize: '0.875rem', color: '#cbd5e1', fontWeight: 500 }}>
+              <label style={{ fontSize: '0.875rem', color: '#6a5c4f', fontWeight: 500 }}>
                 Password
               </label>
             </div>

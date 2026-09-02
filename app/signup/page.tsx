@@ -71,7 +71,7 @@ export default function SignupPage() {
         animate="show"
       >
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem' }}>
-          <div style={{ background: 'rgba(16, 185, 129, 0.15)', padding: '1rem', borderRadius: '50%', color: 'var(--primary)' }}>
+          <div style={{ background: 'rgba(181, 154, 122, 0.15)', padding: '1rem', borderRadius: '50%', color: 'var(--primary)' }}>
             <Briefcase size={32} />
           </div>
         </div>
@@ -103,7 +103,7 @@ export default function SignupPage() {
 
         <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: '#cbd5e1', fontWeight: 500 }}>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: '#6a5c4f', fontWeight: 500 }}>
               Full Name
             </label>
             <input 
@@ -129,7 +129,7 @@ export default function SignupPage() {
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: '#cbd5e1', fontWeight: 500 }}>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: '#6a5c4f', fontWeight: 500 }}>
               Email Address
             </label>
             <input 
@@ -155,7 +155,7 @@ export default function SignupPage() {
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: '#cbd5e1', fontWeight: 500 }}>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: '#6a5c4f', fontWeight: 500 }}>
               Password
             </label>
             <div style={{ position: 'relative' }}>
