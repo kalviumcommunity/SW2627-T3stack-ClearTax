@@ -14,12 +14,25 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  
+  const allowedEmailDomains =[ "gmail.com", "yahoo.com", "outlook.com", " hotmail.com", "icloud.com"];
+  const isValidEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+    if (!emailRegex.test(email)) {
+      return false;
+    }
+    const domain = email.split("@")[1].toLowerCase();
+    return allowedEmailDomains.includes(domain);
+  };
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage("");
     if (!name || !email || !password) return;
 
+    if (!isValidEmail(email.trim())) {
+      setErrorMessage("Please enter a valid email address");
+    }
     setIsLoading(true);
 
     try {

@@ -16,6 +16,22 @@ export async function POST(request) {
       );
     }
 
+    const allowedEmailDomains = [ "gmail.com", "yahoo.com", "outlook.com", " hotmail.com", "icloud.com"];
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if(
+      !emailRegex.test(normalizedEmail) ||
+      !allowedEmailDomains.includes(normalizedEmail.split("@")[1])
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid email address",
+        },
+        { status: 400 }
+      );
+    }
     if (password.length < 4) {
       return NextResponse.json(
         {
