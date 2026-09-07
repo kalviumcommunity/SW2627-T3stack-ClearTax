@@ -47,6 +47,7 @@ export default function DashboardPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
+
   const [isLoadingInvoices, setIsLoadingInvoices] = useState(true);
 
   // Pagination state -prateek  
@@ -57,6 +58,11 @@ export default function DashboardPage() {
   const startIndex = (currentPage - 1) * ITEM_PER_PAGE;
   const endIndex = startIndex + ITEM_PER_PAGE;
   const currentInvoices = invoices.slice(startIndex, endIndex);
+  const totalInvoices = invoices.length;
+
+  const matchedInvoices = invoices.filter((invoice) => invoice.status === "matched").length;
+
+  const mismatchedInvoices = invoices.filter((invoice) => invoice.status === "mismatch").length;
 
   // Minimal History state
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -354,6 +360,69 @@ export default function DashboardPage() {
         initial="hidden"
         animate="show"
       >
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: "1rem",
+            marginBottom: "2rem",
+          }}
+        >
+          {/* Total Invoices */}
+          <div
+            style={{
+              padding: "1rem",
+              border: "1px solid var(--border)",
+              borderRadius: "0.75rem",
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontSize: "0.85rem", color: "var(--muted-foreground)" }}>
+              Total Invoices
+            </div>
+
+            <div style={{ fontSize: "2rem", fontWeight: 700 }}>
+              {totalInvoices}
+            </div>
+          </div>
+
+          {/* Matched */}
+          <div
+            style={{
+              padding: "1rem",
+              border: "1px solid",
+              borderRadius: "0.75rem",
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontSize: "0.85rem", color: "var(--muted-foreground)" }}>
+              Matched
+            </div>
+
+            <div style={{ fontSize: "2rem", fontWeight: 700, color: "#16a34a" }}>
+              {matchedInvoices}
+            </div>
+          </div>
+
+          {/* Mismatched */}
+          <div
+            style={{
+              padding: "1rem",
+              border: "1px solid",
+              borderRadius: "0.75rem",
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontSize: "0.85rem", color: "var(--muted-foreground)" }}>
+              Mismatched
+            </div>
+
+            <div style={{ fontSize: "2rem", fontWeight: 700, color: "#dc2626" }}>
+              {mismatchedInvoices}
+            </div>
+          </div>
+        </div>
         <motion.h1 variants={itemVariants}>
           ClearTax Bulk Upload
         </motion.h1>
