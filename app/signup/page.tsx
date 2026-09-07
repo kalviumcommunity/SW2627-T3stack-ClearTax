@@ -14,25 +14,38 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  
-  const allowedEmailDomains =[ "gmail.com", "yahoo.com", "outlook.com", " hotmail.com", "icloud.com"];
+
+  const allowedEmailDomains = [
+    "gmail.com",
+    "yahoo.com",
+    "outlook.com",
+    "hotmail.com",
+    "icloud.com",
+  ];
+
   const isValidEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailRegex.test(email)) {
       return false;
     }
+
     const domain = email.split("@")[1].toLowerCase();
+
     return allowedEmailDomains.includes(domain);
   };
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage("");
+
     if (!name || !email || !password) return;
 
     if (!isValidEmail(email.trim())) {
       setErrorMessage("Please enter a valid email address");
+      return;
     }
+
     setIsLoading(true);
 
     try {
@@ -54,7 +67,6 @@ export default function SignupPage() {
         throw new Error(data.message || "Failed to create account");
       }
 
-      // Save user session in localStorage
       localStorage.setItem("cleartax_user", JSON.stringify(data.user));
 
       router.push("/dashboard");
@@ -71,167 +83,319 @@ export default function SignupPage() {
 
   const containerVariants = {
     hidden: { opacity: 0, scale: 0.95 },
-    show: { opacity: 1, scale: 1, transition: { duration: 0.5 } }
+    show: {
+      opacity: 1,
+      scale: 1,
+      transition: { duration: 0.5 },
+    },
   };
 
   return (
-    <main className="container" style={{ justifyContent: 'center', alignItems: 'center', display: 'flex', minHeight: '100vh' }}>
-      <motion.div 
+    <main
+      className="container"
+      style={{
+        justifyContent: "center",
+        alignItems: "center",
+        display: "flex",
+        minHeight: "100vh",
+      }}
+    >
+      <motion.div
         className="card"
-        style={{ maxWidth: '450px', width: '100%', padding: '3rem' }}
+        style={{
+          maxWidth: "450px",
+          width: "100%",
+          padding: "3rem",
+          position: "relative",
+        }}
         variants={containerVariants}
         initial="hidden"
         animate="show"
       >
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem' }}>
-          <div style={{ background: 'rgba(181, 154, 122, 0.15)', padding: '1rem', borderRadius: '50%', color: 'var(--primary)' }}>
+        {/* Back button */}
+        <button
+          type="button"
+          onClick={() => router.push("/")}
+          aria-label="Back to Home"
+          style={{
+            position: "absolute",
+            top: "1.25rem",
+            left: "1.25rem",
+            width: "42px",
+            height: "42px",
+            borderRadius: "50%",
+            border: "1px solid #e5ded5",
+            background: "#f8f5f1",
+            color: "var(--primary)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            fontSize: "1.4rem",
+            lineHeight: 1,
+          }}
+        >
+          ←
+        </button>
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            marginBottom: "2rem",
+          }}
+        >
+          <div
+            style={{
+              background: "rgba(181, 154, 122, 0.15)",
+              padding: "1rem",
+              borderRadius: "50%",
+              color: "var(--primary)",
+            }}
+          >
             <Briefcase size={32} />
           </div>
         </div>
-        
-        <h2 style={{ textAlign: 'center', fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem', color: '#fff' }}>
+
+        <h2
+          style={{
+            textAlign: "center",
+            fontSize: "2rem",
+            fontWeight: 700,
+            marginBottom: "0.5rem",
+            color: "#fff",
+          }}
+        >
           Create an Account
         </h2>
-        <p style={{ textAlign: 'center', color: 'var(--muted-foreground)', marginBottom: '2rem' }}>
+
+        <p
+          style={{
+            textAlign: "center",
+            color: "var(--muted-foreground)",
+            marginBottom: "2rem",
+          }}
+        >
           Join ClearTax to start processing bulk invoices.
         </p>
 
         {errorMessage && (
-          <div style={{
-            background: "rgba(239, 68, 68, 0.15)",
-            border: "1px solid rgba(239, 68, 68, 0.3)",
-            color: "#fca5a5",
-            padding: "0.75rem 1rem",
-            borderRadius: "0.5rem",
-            marginBottom: "1.5rem",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            fontSize: "0.875rem"
-          }}>
+          <div
+            style={{
+              background: "rgba(239, 68, 68, 0.15)",
+              border: "1px solid rgba(239, 68, 68, 0.3)",
+              color: "#fca5a5",
+              padding: "0.75rem 1rem",
+              borderRadius: "0.5rem",
+              marginBottom: "1.5rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              fontSize: "0.875rem",
+            }}
+          >
             <AlertCircle size={18} style={{ flexShrink: 0 }} />
             <span>{errorMessage}</span>
           </div>
         )}
 
-        <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <form
+          onSubmit={handleSignup}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "1.25rem",
+          }}
+        >
           <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: '#6a5c4f', fontWeight: 500 }}>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "0.5rem",
+                fontSize: "0.875rem",
+                color: "#6a5c4f",
+                fontWeight: 500,
+              }}
+            >
               Full Name
             </label>
-            <input 
-              type="text" 
+
+            <input
+              type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="John Doe" 
+              placeholder="John Doe"
               required
               style={{
-                width: '100%',
-                padding: '1rem',
-                borderRadius: '0.5rem',
-                border: '1px solid var(--border)',
-                background: 'rgba(0, 0, 0, 0.3)',
-                color: '#fff',
-                fontSize: '1rem',
-                outline: 'none',
-                transition: 'border-color 0.2s'
+                width: "100%",
+                padding: "1rem",
+                borderRadius: "0.5rem",
+                border: "1px solid var(--border)",
+                background: "rgba(0, 0, 0, 0.3)",
+                color: "#fff",
+                fontSize: "1rem",
+                outline: "none",
+                transition: "border-color 0.2s",
               }}
-              onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
-              onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+              onFocus={(e) =>
+                (e.target.style.borderColor = "var(--primary)")
+              }
+              onBlur={(e) =>
+                (e.target.style.borderColor = "var(--border)")
+              }
             />
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: '#6a5c4f', fontWeight: 500 }}>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "0.5rem",
+                fontSize: "0.875rem",
+                color: "#6a5c4f",
+                fontWeight: 500,
+              }}
+            >
               Email Address
             </label>
-            <input 
-              type="email" 
+
+            <input
+              type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@company.com" 
+              placeholder="you@company.com"
               required
               style={{
-                width: '100%',
-                padding: '1rem',
-                borderRadius: '0.5rem',
-                border: '1px solid var(--border)',
-                background: 'rgba(0, 0, 0, 0.3)',
-                color: '#fff',
-                fontSize: '1rem',
-                outline: 'none',
-                transition: 'border-color 0.2s'
+                width: "100%",
+                padding: "1rem",
+                borderRadius: "0.5rem",
+                border: "1px solid var(--border)",
+                background: "rgba(0, 0, 0, 0.3)",
+                color: "#fff",
+                fontSize: "1rem",
+                outline: "none",
+                transition: "border-color 0.2s",
               }}
-              onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
-              onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+              onFocus={(e) =>
+                (e.target.style.borderColor = "var(--primary)")
+              }
+              onBlur={(e) =>
+                (e.target.style.borderColor = "var(--border)")
+              }
             />
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: '#6a5c4f', fontWeight: 500 }}>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "0.5rem",
+                fontSize: "0.875rem",
+                color: "#6a5c4f",
+                fontWeight: 500,
+              }}
+            >
               Password
             </label>
-            <div style={{ position: 'relative' }}>
-              <input 
-                type={showPassword ? "text" : "password"} 
+
+            <div style={{ position: "relative" }}>
+              <input
+                type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••" 
+                placeholder="••••••••"
                 required
                 style={{
-                  width: '100%',
-                  padding: '1rem',
-                  paddingRight: '3rem',
-                  borderRadius: '0.5rem',
-                  border: '1px solid var(--border)',
-                  background: 'rgba(0, 0, 0, 0.3)',
-                  color: '#fff',
-                  fontSize: '1rem',
-                  outline: 'none',
-                  transition: 'border-color 0.2s'
+                  width: "100%",
+                  padding: "1rem",
+                  paddingRight: "3rem",
+                  borderRadius: "0.5rem",
+                  border: "1px solid var(--border)",
+                  background: "rgba(0, 0, 0, 0.3)",
+                  color: "#fff",
+                  fontSize: "1rem",
+                  outline: "none",
+                  transition: "border-color 0.2s",
                 }}
-                onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
-                onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+                onFocus={(e) =>
+                  (e.target.style.borderColor = "var(--primary)")
+                }
+                onBlur={(e) =>
+                  (e.target.style.borderColor = "var(--border)")
+                }
               />
+
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-label={
+                  showPassword ? "Hide password" : "Show password"
+                }
                 style={{
-                  position: 'absolute',
-                  right: '1rem',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--muted-foreground)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: 0
+                  position: "absolute",
+                  right: "1rem",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  color: "var(--muted-foreground)",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 0,
                 }}
               >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                {showPassword ? (
+                  <EyeOff size={20} />
+                ) : (
+                  <Eye size={20} />
+                )}
               </button>
             </div>
           </div>
 
-          <button 
+          <button
             type="submit"
-            className="btn-primary" 
+            className="btn-primary"
             disabled={isLoading || !name || !email || !password}
-            style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', padding: '1rem', marginTop: '0.5rem', cursor: isLoading ? 'not-allowed' : 'pointer' }}
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: "0.5rem",
+              padding: "1rem",
+              marginTop: "0.5rem",
+              cursor: isLoading ? "not-allowed" : "pointer",
+            }}
           >
-            {isLoading ? "Creating account..." : (
-              <>Sign Up <UserPlus size={18} /></>
+            {isLoading ? (
+              "Creating account..."
+            ) : (
+              <>
+                Sign Up <UserPlus size={18} />
+              </>
             )}
           </button>
         </form>
 
-        <p style={{ textAlign: 'center', marginTop: '2rem', color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>
-          Already have an account?{' '}
-          <Link href="/login" style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}>
+        <p
+          style={{
+            textAlign: "center",
+            marginTop: "2rem",
+            color: "var(--muted-foreground)",
+            fontSize: "0.875rem",
+          }}
+        >
+          Already have an account?{" "}
+          <Link
+            href="/login"
+            style={{
+              color: "var(--primary)",
+              fontWeight: 600,
+              textDecoration: "none",
+            }}
+          >
             Sign in
           </Link>
         </p>
