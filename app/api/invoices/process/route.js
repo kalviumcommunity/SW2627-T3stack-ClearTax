@@ -13,6 +13,7 @@ function parseCSVLine(line) {
 
   for (let i = 0; i < line.length; i++) {
     const char = line[i];
+
     if (char === '"') {
       inQuotes = !inQuotes;
     } else if (char === "," && !inQuotes) {
@@ -22,13 +23,94 @@ function parseCSVLine(line) {
       current += char;
     }
   }
+
   values.push(current.trim());
   return values;
 }
+function normalizeDate(value) {
+  if (!value) {
+    return {
+      valid: false,
+      date: null,
+      error: "Invoice date is missing",
+    };
+  }
 
+  const date = String(value).trim();
+
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const [year, month, day] = date.split("-").map(Number);
+
+    const parsed = new Date(
+      Date.UTC(year, month - 1, day)
+    );
+
+    if (
+      parsed.getUTCFullYear() === year &&
+      parsed.getUTCMonth() === month - 1 &&
+      parsed.getUTCDate() === day
+    ) {
+      return {
+        valid: true,
+        date,
+        error: null,
+      };
+    }
+  }
+
+  // DD/MM/YYYY
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
+    const [day, month, year] = date.split("/").map(Number);
+
+    const parsed = new Date(
+      Date.UTC(year, month - 1, day)
+    );
+
+    if (
+      parsed.getUTCFullYear() === year &&
+      parsed.getUTCMonth() === month - 1 &&
+      parsed.getUTCDate() === day
+    ) {
+      return {
+        valid: true,
+        date: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+        error: null,
+      };
+    }
+  }
+
+  // MM/DD/YYYY
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
+    const [month, day, year] = date.split("/").map(Number);
+
+    const parsed = new Date(
+      Date.UTC(year, month - 1, day)
+    );
+
+    if (
+      parsed.getUTCFullYear() === year &&
+      parsed.getUTCMonth() === month - 1 &&
+      parsed.getUTCDate() === day
+    ) {
+      return {
+        valid: true,
+        date: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+        error: null,
+      };
+    }
+  }
+
+  return {
+    valid: false,
+    date: null,
+    error: `Invalid invoice date: ${date}`,
+  };
+}
 export async function POST(request) {
   try {
     const userId = getUserIdFromRequest(request);
+
     const formData = await request.formData();
     const file = formData.get("file");
 
@@ -57,10 +139,11 @@ export async function POST(request) {
     }
 
     const csvText = await file.text();
+
     const lines = csvText
       .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0);
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
 
     if (lines.length <= 1) {
       return NextResponse.json(
@@ -72,87 +155,146 @@ export async function POST(request) {
       );
     }
 
-    // Parse header
-    const headers = parseCSVLine(lines[0]).map((h) =>
-      h.toLowerCase().replace(/[^a-z0-9]/g, "")
+    // Parse CSV header
+    const headers = parseCSVLine(lines[0]).map((header) =>
+      header.toLowerCase().replace(/[^a-z0-9]/g, "")
     );
 
-    // Map column indices
+    // Find column indexes
     const invNumIdx = headers.findIndex(
-      (h) => h.includes("invoicenumber") || h.includes("invoiceid") || h === "id"
-    );
-    const custIdx = headers.findIndex(
-      (h) => h.includes("customer") || h.includes("client")
-    );
-    const dateIdx = headers.findIndex(
-      (h) => h.includes("date")
-    );
-    const amountIdx = headers.findIndex(
-      (h) => h.includes("amount") || h.includes("total") || h.includes("price")
-    );
-    const gstIdx = headers.findIndex(
-      (h) => h.includes("gst") || h.includes("tax")
+      (header) =>
+        header.includes("invoicenumber") ||
+        header.includes("invoiceid") ||
+        header === "id"
     );
 
+    const custIdx = headers.findIndex(
+      (header) =>
+        header.includes("customer") ||
+        header.includes("client")
+    );
+
+    const dateIdx = headers.findIndex(
+      (header) => header.includes("date")
+    );
+
+    const amountIdx = headers.findIndex(
+      (header) =>
+        header.includes("amount") ||
+        header.includes("total") ||
+        header.includes("price")
+    );
+
+    const gstIdx = headers.findIndex(
+      (header) =>
+        header.includes("gst") ||
+        header.includes("tax")
+    );
+
+    // Get existing invoices for this user
     const userInvoices = await getUserInvoices(userId);
 
-    // Process each row
+    // Process every CSV row
     for (let i = 1; i < lines.length; i++) {
       const row = parseCSVLine(lines[i]);
-      if (row.length === 0 || (row.length === 1 && !row[0])) continue;
 
-      const invoiceNumber = invNumIdx !== -1 ? row[invNumIdx] : `INV-${Date.now()}-${i}`;
-      const customerName = custIdx !== -1 ? row[custIdx] : row[1] || "Unknown Customer";
-      const invoiceDate = dateIdx !== -1 ? row[dateIdx] : new Date().toISOString().split("T")[0];
-      const rawAmount = amountIdx !== -1 ? row[amountIdx] : row[3];
-      const gstNumber = gstIdx !== -1 ? row[gstIdx] : row[4] || "N/A";
+      if (
+        row.length === 0 ||
+        (row.length === 1 && !row[0])
+      ) {
+        continue;
+      }
+
+      const invoiceNumber =
+        invNumIdx !== -1
+          ? row[invNumIdx]?.trim()
+          : `INV-${Date.now()}-${i}`;
+
+      const customerName =
+        custIdx !== -1
+          ? row[custIdx]?.trim()
+          : row[1]?.trim() || "Unknown Customer";
+
+      const rawInvoiceDate =
+  dateIdx !== -1
+    ? row[dateIdx]?.trim()
+    : "";
+
+const dateResult = normalizeDate(rawInvoiceDate);
+
+const invoiceDate = dateResult.valid
+  ? dateResult.date
+  : "2000-01-01";
+
+      const rawAmount =
+        amountIdx !== -1
+          ? row[amountIdx]?.trim()
+          : row[3]?.trim();
+
+      const gstNumber =
+        gstIdx !== -1
+          ? row[gstIdx]?.trim()
+          : row[4]?.trim() || "N/A";
 
       const amount = Number(rawAmount);
+
       let status = "matched";
       let error = null;
 
       // Validation
       if (!invoiceNumber) {
-        status = "failed";
-        error = "Invoice ID is missing";
-      } else if (!customerName) {
-        status = "failed";
-        error = "Customer Name is required";
-      } else if (isNaN(amount) || amount <= 0) {
-        status = "failed";
-        error = `Invalid invoice amount: ${rawAmount}`;
-      } else if (!gstNumber || gstNumber === "N/A") {
-        status = "mismatch";
-        error = "GST information missing or unverifiable";
-      }
+  status = "failed";
+  error = "Invoice ID is missing";
+} else if (!customerName) {
+  status = "failed";
+  error = "Customer Name is required";
+} else if (!dateResult.valid) {
+  status = "failed";
+  error = dateResult.error;
+} else if (!Number.isFinite(amount) || amount <= 0) {
+  status = "failed";
+  error = `Invalid invoice amount: ${rawAmount}`;
+} else if (!gstNumber || gstNumber === "N/A") {
+  status = "mismatch";
+  error = "GST information missing or unverifiable";
+}
 
-      // Check if this invoice already exists for this user
+      // Check for existing invoice
       const existing = userInvoices.find(
-        (inv) => inv.invoiceNumber === invoiceNumber
+        (invoice) =>
+          invoice.invoiceNumber === invoiceNumber
       );
 
       if (existing) {
-        await updateUserInvoice(userId, existing.id, {
-          customerName,
-          invoiceDate,
-          amount: isNaN(amount) ? 0 : amount,
-          gstNumber,
-          status,
-          error,
-        });
+        await updateUserInvoice(
+          userId,
+          existing.id,
+          {
+            customerName,
+            invoiceDate,
+            amount: Number.isFinite(amount) ? amount : 0,
+            gstNumber,
+            status,
+            error,
+          }
+        );
       } else {
-        await addUserInvoice(userId, {
-          invoiceNumber,
-          customerName,
-          invoiceDate,
-          amount: isNaN(amount) ? 0 : amount,
-          gstNumber,
-          status,
-          error,
-        });
+        await addUserInvoice(
+          userId,
+          {
+            invoiceNumber,
+            customerName,
+            invoiceDate,
+            amount: Number.isFinite(amount) ? amount : 0,
+            gstNumber,
+            status,
+            error,
+          }
+        );
       }
     }
 
+    // Fetch final invoice list
     const updatedInvoices = await getUserInvoices(userId);
 
     return NextResponse.json({
@@ -166,7 +308,10 @@ export async function POST(request) {
     return NextResponse.json(
       {
         success: false,
-        message: "Something went wrong while processing invoices",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Something went wrong while processing invoices",
       },
       { status: 500 }
     );
@@ -174,36 +319,54 @@ export async function POST(request) {
 }
 
 export async function GET(request) {
-  const userId = getUserIdFromRequest(request);
-  const userInvoices = await getUserInvoices(userId);
-  const total = userInvoices.length;
+  try {
+    const userId = getUserIdFromRequest(request);
 
-  const processed = userInvoices.filter(
-    (invoice) =>
-      invoice.status === "matched" ||
-      invoice.status === "mismatch" ||
-      invoice.status === "failed"
-  ).length;
+    const userInvoices = await getUserInvoices(userId);
+    const total = userInvoices.length;
 
-  const processing = userInvoices.filter(
-    (invoice) => invoice.status === "processing"
-  ).length;
+    const processed = userInvoices.filter(
+      (invoice) =>
+        invoice.status === "matched" ||
+        invoice.status === "mismatch" ||
+        invoice.status === "failed"
+    ).length;
 
-  const pending = userInvoices.filter(
-    (invoice) => invoice.status === "pending"
-  ).length;
+    const processing = userInvoices.filter(
+      (invoice) => invoice.status === "processing"
+    ).length;
 
-  const percentage =
-    total === 0 ? 0 : Math.round((processed / total) * 100);
+    const pending = userInvoices.filter(
+      (invoice) => invoice.status === "pending"
+    ).length;
 
-  return NextResponse.json({
-    success: true,
-    progress: {
-      total,
-      processed,
-      processing,
-      pending,
-      percentage,
-    },
-  });
+    const percentage =
+      total === 0
+        ? 0
+        : Math.round((processed / total) * 100);
+
+    return NextResponse.json({
+      success: true,
+      progress: {
+        total,
+        processed,
+        processing,
+        pending,
+        percentage,
+      },
+    });
+  } catch (error) {
+    console.error("GET /api/invoices/process error:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch processing progress",
+      },
+      { status: 500 }
+    );
+  }
 }
