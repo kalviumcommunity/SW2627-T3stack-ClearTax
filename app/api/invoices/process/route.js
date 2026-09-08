@@ -15,7 +15,12 @@ function parseCSVLine(line) {
     const char = line[i];
 
     if (char === '"') {
-      inQuotes = !inQuotes;
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
     } else if (char === "," && !inQuotes) {
       values.push(current.trim());
       current = "";
@@ -25,52 +30,41 @@ function parseCSVLine(line) {
   }
 
   values.push(current.trim());
+
   return values;
 }
+
+
+// Convert different common date formats to YYYY-MM-DD
 function normalizeDate(value) {
   if (!value) {
     return {
       valid: false,
       date: null,
-      error: "Invoice date is missing",
+      error: "Date is missing",
     };
   }
 
-  const date = String(value).trim();
+  const input = String(value).trim();
 
   // YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    const [year, month, day] = date.split("-").map(Number);
+  let match = input.match(
+    /^(\d{4})-(\d{1,2})-(\d{1,2})$/
+  );
 
-    const parsed = new Date(
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+
+    const date = new Date(
       Date.UTC(year, month - 1, day)
     );
 
     if (
-      parsed.getUTCFullYear() === year &&
-      parsed.getUTCMonth() === month - 1 &&
-      parsed.getUTCDate() === day
-    ) {
-      return {
-        valid: true,
-        date,
-        error: null,
-      };
-    }
-  }
-
-  // DD/MM/YYYY
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
-    const [day, month, year] = date.split("/").map(Number);
-
-    const parsed = new Date(
-      Date.UTC(year, month - 1, day)
-    );
-
-    if (
-      parsed.getUTCFullYear() === year &&
-      parsed.getUTCMonth() === month - 1 &&
-      parsed.getUTCDate() === day
+      date.getUTCFullYear() === year &&
+      date.getUTCMonth() === month - 1 &&
+      date.getUTCDate() === day
     ) {
       return {
         valid: true,
@@ -80,18 +74,37 @@ function normalizeDate(value) {
     }
   }
 
-  // MM/DD/YYYY
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
-    const [month, day, year] = date.split("/").map(Number);
+  // MM/DD/YYYY or DD/MM/YYYY
+  match = input.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
+  );
 
-    const parsed = new Date(
+  if (match) {
+    const first = Number(match[1]);
+    const second = Number(match[2]);
+    const year = Number(match[3]);
+
+    let month;
+    let day;
+
+    // If first value > 12, it must be DD/MM/YYYY
+    if (first > 12) {
+      day = first;
+      month = second;
+    } else {
+      // Our built-in CSV will use MM/DD/YYYY when slash format is used
+      month = first;
+      day = second;
+    }
+
+    const date = new Date(
       Date.UTC(year, month - 1, day)
     );
 
     if (
-      parsed.getUTCFullYear() === year &&
-      parsed.getUTCMonth() === month - 1 &&
-      parsed.getUTCDate() === day
+      date.getUTCFullYear() === year &&
+      date.getUTCMonth() === month - 1 &&
+      date.getUTCDate() === day
     ) {
       return {
         valid: true,
@@ -104,9 +117,134 @@ function normalizeDate(value) {
   return {
     valid: false,
     date: null,
-    error: `Invalid invoice date: ${date}`,
+    error: `Invalid date: ${input}`,
   };
 }
+
+
+function parseMoney(value) {
+  if (
+    value === null ||
+    value === undefined ||
+    String(value).trim() === ""
+  ) {
+    return {
+      valid: false,
+      value: null,
+    };
+  }
+
+  const cleaned = String(value)
+    .replace(/₹/g, "")
+    .replace(/,/g, "")
+    .trim();
+
+  const number = Number(cleaned);
+
+  if (!Number.isFinite(number)) {
+    return {
+      valid: false,
+      value: null,
+    };
+  }
+
+  return {
+    valid: true,
+    value: number,
+  };
+}
+
+
+function calculateStatuses({
+  amount,
+  tax,
+  paidAmount,
+  dueDate,
+  paidDate,
+}) {
+  if (
+    !Number.isFinite(amount) ||
+    amount < 0
+  ) {
+    return {
+      paymentStatus: "failed",
+      timingStatus: "invalid",
+      error: "Invoice amount is invalid",
+    };
+  }
+
+  if (
+    !Number.isFinite(tax) ||
+    tax < 0
+  ) {
+    return {
+      paymentStatus: "failed",
+      timingStatus: "invalid",
+      error: "Tax amount is invalid",
+    };
+  }
+
+  if (
+    !Number.isFinite(paidAmount) ||
+    paidAmount < 0
+  ) {
+    return {
+      paymentStatus: "failed",
+      timingStatus: "invalid",
+      error: "Paid amount is invalid",
+    };
+  }
+
+  const totalAmount = Number(
+    (amount + tax).toFixed(2)
+  );
+
+  const amountDue = Number(
+    (totalAmount - paidAmount).toFixed(2)
+  );
+
+  let paymentStatus;
+
+  if (paidAmount > totalAmount) {
+    paymentStatus = "overpaid";
+  } else if (Math.abs(paidAmount - totalAmount) < 0.01) {
+    paymentStatus = "matched";
+  } else if (paidAmount > 0) {
+    paymentStatus = "partially_paid";
+  } else {
+    paymentStatus = "unpaid";
+  }
+
+  let timingStatus = "pending";
+
+  if (!dueDate) {
+    timingStatus = "not_available";
+  } else if (paidDate) {
+    timingStatus =
+      paidDate <= dueDate
+        ? "on_time"
+        : "late";
+  } else {
+    const today = new Date()
+      .toISOString()
+      .split("T")[0];
+
+    timingStatus =
+      today > dueDate
+        ? "overdue"
+        : "pending";
+  }
+
+  return {
+    totalAmount,
+    amountDue,
+    paymentStatus,
+    timingStatus,
+    error: null,
+  };
+}
+
+
 export async function POST(request) {
   try {
     const userId = getUserIdFromRequest(request);
@@ -124,7 +262,6 @@ export async function POST(request) {
       );
     }
 
-    // Check CSV file format
     if (
       file.type !== "text/csv" &&
       !file.name.toLowerCase().endsWith(".csv")
@@ -143,7 +280,7 @@ export async function POST(request) {
     const lines = csvText
       .split(/\r?\n/)
       .map((line) => line.trim())
-      .filter((line) => line.length > 0);
+      .filter(Boolean);
 
     if (lines.length <= 1) {
       return NextResponse.json(
@@ -155,155 +292,297 @@ export async function POST(request) {
       );
     }
 
-    // Parse CSV header
-    const headers = parseCSVLine(lines[0]).map((header) =>
-      header.toLowerCase().replace(/[^a-z0-9]/g, "")
-    );
-
-    // Find column indexes
-    const invNumIdx = headers.findIndex(
+    const headers = parseCSVLine(lines[0]).map(
       (header) =>
-        header.includes("invoicenumber") ||
-        header.includes("invoiceid") ||
-        header === "id"
+        header
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, "")
     );
 
-    const custIdx = headers.findIndex(
-      (header) =>
-        header.includes("customer") ||
-        header.includes("client")
-    );
-
-    const dateIdx = headers.findIndex(
-      (header) => header.includes("date")
-    );
-
-    const amountIdx = headers.findIndex(
-      (header) =>
-        header.includes("amount") ||
-        header.includes("total") ||
-        header.includes("price")
-    );
-
-    const gstIdx = headers.findIndex(
-      (header) =>
-        header.includes("gst") ||
-        header.includes("tax")
-    );
-
-    // Get existing invoices for this user
-    const userInvoices = await getUserInvoices(userId);
-
-    // Process every CSV row
-    for (let i = 1; i < lines.length; i++) {
-      const row = parseCSVLine(lines[i]);
-
-      if (
-        row.length === 0 ||
-        (row.length === 1 && !row[0])
-      ) {
-        continue;
-      }
-
-      const invoiceNumber =
-        invNumIdx !== -1
-          ? row[invNumIdx]?.trim()
-          : `INV-${Date.now()}-${i}`;
-
-      const customerName =
-        custIdx !== -1
-          ? row[custIdx]?.trim()
-          : row[1]?.trim() || "Unknown Customer";
-
-      const rawInvoiceDate =
-  dateIdx !== -1
-    ? row[dateIdx]?.trim()
-    : "";
-
-const dateResult = normalizeDate(rawInvoiceDate);
-
-const invoiceDate = dateResult.valid
-  ? dateResult.date
-  : "2000-01-01";
-
-      const rawAmount =
-        amountIdx !== -1
-          ? row[amountIdx]?.trim()
-          : row[3]?.trim();
-
-      const gstNumber =
-        gstIdx !== -1
-          ? row[gstIdx]?.trim()
-          : row[4]?.trim() || "N/A";
-
-      const amount = Number(rawAmount);
-
-      let status = "matched";
-      let error = null;
-
-      // Validation
-      if (!invoiceNumber) {
-  status = "failed";
-  error = "Invoice ID is missing";
-} else if (!customerName) {
-  status = "failed";
-  error = "Customer Name is required";
-} else if (!dateResult.valid) {
-  status = "failed";
-  error = dateResult.error;
-} else if (!Number.isFinite(amount) || amount <= 0) {
-  status = "failed";
-  error = `Invalid invoice amount: ${rawAmount}`;
-} else if (!gstNumber || gstNumber === "N/A") {
-  status = "mismatch";
-  error = "GST information missing or unverifiable";
-}
-
-      // Check for existing invoice
-      const existing = userInvoices.find(
-        (invoice) =>
-          invoice.invoiceNumber === invoiceNumber
+    const findHeader = (...names) =>
+      headers.findIndex((header) =>
+        names.includes(header)
       );
 
-      if (existing) {
-        await updateUserInvoice(
-          userId,
-          existing.id,
-          {
-            customerName,
-            invoiceDate,
-            amount: Number.isFinite(amount) ? amount : 0,
-            gstNumber,
-            status,
-            error,
-          }
-        );
-      } else {
-        await addUserInvoice(
-          userId,
-          {
-            invoiceNumber,
-            customerName,
-            invoiceDate,
-            amount: Number.isFinite(amount) ? amount : 0,
-            gstNumber,
-            status,
-            error,
-          }
+    const invoiceNumberIdx = findHeader(
+      "invoicenumber",
+      "invoiceid",
+      "invoice"
+    );
+
+    const invoiceDateIdx = findHeader(
+      "invoicedate",
+      "date"
+    );
+
+    const dueDateIdx = findHeader(
+      "duedate"
+    );
+
+    const contactIdx = findHeader(
+      "contact",
+      "customer",
+      "customername",
+      "client"
+    );
+
+    const currencyIdx = findHeader(
+      "currency"
+    );
+
+    const amountIdx = findHeader(
+      "amount",
+      "invoiceamount"
+    );
+
+    const taxIdx = findHeader(
+      "tax",
+      "taxamount",
+      "gst",
+      "gstamount"
+    );
+
+    const paidAmountIdx = findHeader(
+      "paidamount",
+      "paid"
+    );
+
+    const paidDateIdx = findHeader(
+      "paiddate"
+    );
+
+    if (
+      invoiceNumberIdx === -1 ||
+      invoiceDateIdx === -1 ||
+      dueDateIdx === -1 ||
+      contactIdx === -1 ||
+      amountIdx === -1 ||
+      paidAmountIdx === -1
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "CSV is missing required columns. Required columns: invoiceNumber, invoiceDate, dueDate, contact, amount, paidAmount",
+        },
+        { status: 400 }
+      );
+    }
+
+    const existingInvoices =
+      await getUserInvoices(userId);
+
+    let processedCount = 0;
+    let failedCount = 0;
+
+    for (let i = 1; i < lines.length; i++) {
+      const rowNumber = i + 1;
+
+      try {
+        const row = parseCSVLine(lines[i]);
+
+        const invoiceNumber =
+          row[invoiceNumberIdx]?.trim() || "";
+
+        const contact =
+          row[contactIdx]?.trim() || "";
+
+        const currency =
+          currencyIdx !== -1
+            ? row[currencyIdx]?.trim() || "INR"
+            : "INR";
+
+        const rawInvoiceDate =
+          row[invoiceDateIdx]?.trim() || "";
+
+        const rawDueDate =
+          row[dueDateIdx]?.trim() || "";
+
+        const rawAmount =
+          row[amountIdx]?.trim() || "";
+
+        const rawTax =
+          taxIdx !== -1
+            ? row[taxIdx]?.trim()
+            : "0";
+
+        const rawPaidAmount =
+          row[paidAmountIdx]?.trim() || "";
+
+        const rawPaidDate =
+          paidDateIdx !== -1
+            ? row[paidDateIdx]?.trim() || ""
+            : "";
+
+        const invoiceDateResult =
+          normalizeDate(rawInvoiceDate);
+
+        const dueDateResult =
+          normalizeDate(rawDueDate);
+
+        const paidDateResult =
+          rawPaidDate
+            ? normalizeDate(rawPaidDate)
+            : {
+                valid: true,
+                date: null,
+                error: null,
+              };
+
+        const amountResult =
+          parseMoney(rawAmount);
+
+        const taxResult =
+          rawTax === ""
+            ? { valid: true, value: 0 }
+            : parseMoney(rawTax);
+
+        const paidAmountResult =
+          rawPaidAmount === ""
+            ? { valid: true, value: 0 }
+            : parseMoney(rawPaidAmount);
+
+        let paymentStatus = "failed";
+        let timingStatus = "invalid";
+        let totalAmount = null;
+        let amountDue = null;
+        let error = null;
+
+        if (!invoiceNumber) {
+          error = "Invoice number is missing";
+        } else if (!contact) {
+          error = "Contact is required";
+        } else if (!invoiceDateResult.valid) {
+          error = invoiceDateResult.error;
+        } else if (!dueDateResult.valid) {
+          error = dueDateResult.error;
+        } else if (!amountResult.valid) {
+          error = `Invalid amount: ${rawAmount}`;
+        } else if (!taxResult.valid) {
+          error = `Invalid tax amount: ${rawTax}`;
+        } else if (!paidAmountResult.valid) {
+          error = `Invalid paid amount: ${rawPaidAmount}`;
+        } else if (!paidDateResult.valid) {
+          error = paidDateResult.error;
+        }
+
+        if (!error) {
+          const calculation =
+            calculateStatuses({
+              amount: amountResult.value,
+              tax: taxResult.value,
+              paidAmount: paidAmountResult.value,
+              dueDate: dueDateResult.date,
+              paidDate: paidDateResult.date,
+            });
+
+          totalAmount =
+            calculation.totalAmount;
+
+          amountDue =
+            calculation.amountDue;
+
+          paymentStatus =
+            calculation.paymentStatus;
+
+          timingStatus =
+            calculation.timingStatus;
+
+          error =
+            calculation.error;
+        } else {
+          failedCount++;
+        }
+
+        if (error) {
+          paymentStatus = "failed";
+          timingStatus = "invalid";
+        }
+
+        const existing =
+          existingInvoices.find(
+            (invoice) =>
+              invoice.invoiceNumber ===
+              invoiceNumber
+          );
+
+        const invoiceData = {
+          invoiceNumber,
+          invoiceDate:
+            invoiceDateResult.valid
+              ? invoiceDateResult.date
+              : null,
+          dueDate:
+            dueDateResult.valid
+              ? dueDateResult.date
+              : null,
+          contact,
+          currency,
+          amount:
+            amountResult.valid
+              ? amountResult.value
+              : null,
+          tax:
+            taxResult.valid
+              ? taxResult.value
+              : 0,
+          totalAmount,
+          paidAmount:
+            paidAmountResult.valid
+              ? paidAmountResult.value
+              : 0,
+          amountDue,
+          paidDate:
+            paidDateResult.valid
+              ? paidDateResult.date
+              : null,
+          paymentStatus,
+          timingStatus,
+          error,
+        };
+
+        if (existing) {
+          await updateUserInvoice(
+            userId,
+            existing.id,
+            invoiceData
+          );
+        } else {
+          await addUserInvoice(
+            userId,
+            invoiceData
+          );
+        }
+
+        processedCount++;
+      } catch (rowError) {
+        failedCount++;
+
+        console.error(
+          `Error processing CSV row ${rowNumber}:`,
+          rowError
         );
       }
     }
 
-    // Fetch final invoice list
-    const updatedInvoices = await getUserInvoices(userId);
+    const updatedInvoices =
+      await getUserInvoices(userId);
 
     return NextResponse.json({
       success: true,
-      message: "Invoices processed successfully",
+      message: "Invoice batch processed successfully",
+      summary: {
+        total: lines.length - 1,
+        processed: processedCount,
+        failed: failedCount,
+      },
       data: updatedInvoices,
     });
   } catch (error) {
-    console.error("Processing error:", error);
+    console.error(
+      "Invoice processing error:",
+      error
+    );
 
     return NextResponse.json(
       {
@@ -311,52 +590,56 @@ const invoiceDate = dateResult.valid
         message:
           error instanceof Error
             ? error.message
-            : "Something went wrong while processing invoices",
+            : "Invoice processing failed",
       },
       { status: 500 }
     );
   }
 }
 
+
 export async function GET(request) {
   try {
     const userId = getUserIdFromRequest(request);
 
-    const userInvoices = await getUserInvoices(userId);
-    const total = userInvoices.length;
+    const invoices =
+      await getUserInvoices(userId);
 
-    const processed = userInvoices.filter(
-      (invoice) =>
-        invoice.status === "matched" ||
-        invoice.status === "mismatch" ||
-        invoice.status === "failed"
-    ).length;
+    const processed =
+      invoices.filter(
+        (invoice) =>
+          invoice.paymentStatus === "matched" ||
+          invoice.paymentStatus === "partially_paid" ||
+          invoice.paymentStatus === "unpaid" ||
+          invoice.paymentStatus === "overpaid"
+      ).length;
 
-    const processing = userInvoices.filter(
-      (invoice) => invoice.status === "processing"
-    ).length;
-
-    const pending = userInvoices.filter(
-      (invoice) => invoice.status === "pending"
-    ).length;
-
-    const percentage =
-      total === 0
-        ? 0
-        : Math.round((processed / total) * 100);
+    const failed =
+      invoices.filter(
+        (invoice) =>
+          invoice.paymentStatus === "failed"
+      ).length;
 
     return NextResponse.json({
       success: true,
       progress: {
-        total,
+        total: invoices.length,
         processed,
-        processing,
-        pending,
-        percentage,
+        failed,
+        percentage:
+          invoices.length === 0
+            ? 0
+            : Math.round(
+                (processed / invoices.length) *
+                  100
+              ),
       },
     });
   } catch (error) {
-    console.error("GET /api/invoices/process error:", error);
+    console.error(
+      "GET invoice progress error:",
+      error
+    );
 
     return NextResponse.json(
       {
@@ -364,7 +647,7 @@ export async function GET(request) {
         message:
           error instanceof Error
             ? error.message
-            : "Failed to fetch processing progress",
+            : "Failed to fetch progress",
       },
       { status: 500 }
     );
