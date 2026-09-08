@@ -46,32 +46,31 @@ export default function DashboardPage() {
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
+  const [processedInvoices, setProcessedInvoices] = useState<InvoiceRecord[]>([]);
+  const [historyInvoices, setHistoryInvoices] = useState<InvoiceRecord[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
 
-  const [isLoadingInvoices, setIsLoadingInvoices] = useState(true);
-
-  // Pagination state -prateek  
+  // Pagination for current processed batch
   const [currentPage, setCurrentPage] = useState(1);
   const ITEM_PER_PAGE = 15;
 
-  const totalPages = Math.ceil(invoices.length / ITEM_PER_PAGE);
+  const totalPages = Math.ceil(processedInvoices.length / ITEM_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEM_PER_PAGE;
   const endIndex = startIndex + ITEM_PER_PAGE;
-  const currentInvoices = invoices.slice(startIndex, endIndex);
-  const totalInvoices = invoices.length;
+  const currentInvoices = processedInvoices.slice(startIndex, endIndex);
+  const totalInvoices = processedInvoices.length;
 
-  const matchedInvoices = invoices.filter((invoice) => invoice.status === "matched").length;
-
-  const mismatchedInvoices = invoices.filter((invoice) => invoice.status === "mismatch").length;
+  const matchedInvoices = processedInvoices.filter((invoice) => invoice.status === "matched").length;
+  const mismatchedInvoices = processedInvoices.filter((invoice) => invoice.status === "mismatch").length;
 
   // Minimal History state
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch invoices for active user
+  // Fetch invoices for active user history
   const fetchInvoices = useCallback(async (userId: string) => {
-    setIsLoadingInvoices(true);
+    setIsLoadingHistory(true);
     try {
       const response = await fetch(`/api/invoices?userId=${encodeURIComponent(userId)}`, {
         headers: {
@@ -81,12 +80,12 @@ export default function DashboardPage() {
 
       const result = await response.json();
       if (result.success) {
-        setInvoices(result.data || []);
+        setHistoryInvoices(result.data || []);
       }
     } catch (error) {
-      console.error("Failed to fetch invoices:", error);
+      console.error("Failed to fetch history invoices:", error);
     } finally {
-      setIsLoadingInvoices(false);
+      setIsLoadingHistory(false);
     }
   }, []);
 
@@ -186,11 +185,11 @@ export default function DashboardPage() {
       setProgress(100);
 
       if (result.data && Array.isArray(result.data)) {
-        setInvoices(result.data);
+        setProcessedInvoices(result.data);
         setCurrentPage(1);
       }
 
-      // Refresh invoices for active user
+      // Refresh invoices history for active user
       await fetchInvoices(user.id);
     } catch (error) {
       console.error("Processing error:", error);
@@ -360,69 +359,6 @@ export default function DashboardPage() {
         initial="hidden"
         animate="show"
       >
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: "1rem",
-            marginBottom: "2rem",
-          }}
-        >
-          {/* Total Invoices */}
-          <div
-            style={{
-              padding: "1rem",
-              border: "1px solid var(--border)",
-              borderRadius: "0.75rem",
-              textAlign: "center",
-            }}
-          >
-            <div style={{ fontSize: "0.85rem", color: "var(--muted-foreground)" }}>
-              Total Invoices
-            </div>
-
-            <div style={{ fontSize: "2rem", fontWeight: 700 }}>
-              {totalInvoices}
-            </div>
-          </div>
-
-          {/* Matched */}
-          <div
-            style={{
-              padding: "1rem",
-              border: "1px solid",
-              borderRadius: "0.75rem",
-              textAlign: "center",
-            }}
-          >
-            <div style={{ fontSize: "0.85rem", color: "var(--muted-foreground)" }}>
-              Matched
-            </div>
-
-            <div style={{ fontSize: "2rem", fontWeight: 700, color: "#16a34a" }}>
-              {matchedInvoices}
-            </div>
-          </div>
-
-          {/* Mismatched */}
-          <div
-            style={{
-              padding: "1rem",
-              border: "1px solid",
-              borderRadius: "0.75rem",
-              textAlign: "center",
-            }}
-          >
-            <div style={{ fontSize: "0.85rem", color: "var(--muted-foreground)" }}>
-              Mismatched
-            </div>
-
-            <div style={{ fontSize: "2rem", fontWeight: 700, color: "#dc2626" }}>
-              {mismatchedInvoices}
-            </div>
-          </div>
-        </div>
         <motion.h1 variants={itemVariants}>
           ClearTax Bulk Upload
         </motion.h1>
@@ -536,212 +472,246 @@ export default function DashboardPage() {
           )}
         </AnimatePresence>
 
-        {invoices.length > 0 ? (
+        {processedInvoices.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="table-container"
+            style={{ marginTop: "2rem" }}
           >
+            {/* Batch Stats */}
             <div
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "1rem",
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: "1rem",
+                marginBottom: "2rem",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                <h3 style={{ margin: 0, fontSize: "1.1rem" }}>Invoices List</h3>
-                <span
-                  style={{
-                    fontSize: "0.85rem",
-                    color: "var(--muted-foreground)",
-                    background: "rgba(139, 121, 104, 0.05)",
-                    padding: "0.25rem 0.75rem",
-                    borderRadius: "1rem",
-                  }}
-                >
-                  Showing {startIndex + 1}–{Math.min(endIndex, invoices.length)} of{" "}
-                  {invoices.length}
-                </span>
+              {/* Total Processed */}
+              <div
+                style={{
+                  padding: "1rem",
+                  border: "1px solid var(--border)",
+                  borderRadius: "0.75rem",
+                  textAlign: "center",
+                }}
+              >
+                <div style={{ fontSize: "0.85rem", color: "var(--muted-foreground)" }}>
+                  Total Invoices
+                </div>
+                <div style={{ fontSize: "2rem", fontWeight: 700 }}>
+                  {totalInvoices}
+                </div>
+              </div>
+
+              {/* Matched */}
+              <div
+                style={{
+                  padding: "1rem",
+                  border: "1px solid var(--border)",
+                  borderRadius: "0.75rem",
+                  textAlign: "center",
+                }}
+              >
+                <div style={{ fontSize: "0.85rem", color: "var(--muted-foreground)" }}>
+                  Matched
+                </div>
+                <div style={{ fontSize: "2rem", fontWeight: 700, color: "#16a34a" }}>
+                  {matchedInvoices}
+                </div>
+              </div>
+
+              {/* Mismatched */}
+              <div
+                style={{
+                  padding: "1rem",
+                  border: "1px solid var(--border)",
+                  borderRadius: "0.75rem",
+                  textAlign: "center",
+                }}
+              >
+                <div style={{ fontSize: "0.85rem", color: "var(--muted-foreground)" }}>
+                  Mismatched
+                </div>
+                <div style={{ fontSize: "2rem", fontWeight: 700, color: "#dc2626" }}>
+                  {mismatchedInvoices}
+                </div>
               </div>
             </div>
-            <table className="styled-table">
-              <thead>
-                <tr>
-                  <th>Invoice No.</th>
-                  <th>Customer</th>
-                  <th>Date</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
 
-              <tbody>
-                <AnimatePresence>
-                  {currentInvoices.map((inv) => (
-                    <motion.tr
-                      key={inv.id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <td style={{ fontWeight: 600 }}>{inv.invoiceNumber}</td>
-
-                      <td>{inv.customerName}</td>
-
-                      <td style={{ color: "var(--muted-foreground)", fontSize: "0.875rem" }}>
-                        {inv.invoiceDate}
-                      </td>
-
-                      <td>
-                        ₹{inv.amount.toLocaleString()}
-                      </td>
-
-                      <td>
-                        {renderStatusBadge(inv.status)}
-
-                        {inv.error && (
-                          <div className="error-text">
-                            <AlertTriangle size={14} /> {inv.error}
-                          </div>
-                        )}
-                      </td>
-                    </motion.tr>
-                  ))}
-                </AnimatePresence>
-              </tbody>
-            </table>
-            {/* Pagination */}
-            {totalPages > 1 && (
+            {/* Invoices List Table */}
+            <div className="table-container">
               <div
                 style={{
                   display: "flex",
-                  justifyContent: "center",
+                  justifyContent: "space-between",
                   alignItems: "center",
-                  gap: "0.5rem",
-                  marginTop: "1.5rem",
-                  flexWrap: "wrap",
+                  marginBottom: "1rem",
                 }}
               >
-                {/* Previous Button */}
-                <button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.max(prev - 1, 1))
-                  }
-                  disabled={currentPage === 1}
-                  style={{
-                    padding: "0.5rem 0.9rem",
-                    borderRadius: "0.5rem",
-                    border: "1px solid var(--border)",
-                    background:
-                      currentPage === 1
-                        ? "rgba(139, 121, 104, 0.05)"
-                        : "white",
-                    color:
-                      currentPage === 1
-                        ? "rgba(74, 64, 54, 0.4)"
-                        : "#4a4036",
-                    cursor:
-                      currentPage === 1
-                        ? "not-allowed"
-                        : "pointer",
-                  }}
-                >
-                  Previous
-                </button>
-
-                {/* Page Numbers */}
-                {Array.from({ length: totalPages }, (_, index) => index + 1).map(
-                  (page) => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      style={{
-                        minWidth: "40px",
-                        padding: "0.5rem 0.75rem",
-                        borderRadius: "0.5rem",
-                        border: "1px solid var(--border)",
-                        background:
-                          currentPage === page
-                            ? "var(--primary)"
-                            : "white",
-                        color:
-                          currentPage === page
-                            ? "white"
-                            : "#4a4036",
-                        fontWeight:
-                          currentPage === page ? 700 : 500,
-                        cursor: "pointer",
-                      }}
-                    >
-                      {page}
-                    </button>
-                  )
-                )}
-
-                {/* Next Button */}
-                <button
-                  onClick={() =>
-                    setCurrentPage((prev) =>
-                      Math.min(prev + 1, totalPages)
-                    )
-                  }
-                  disabled={currentPage === totalPages}
-                  style={{
-                    padding: "0.5rem 0.9rem",
-                    borderRadius: "0.5rem",
-                    border: "1px solid var(--border)",
-                    background:
-                      currentPage === totalPages
-                        ? "rgba(139, 121, 104, 0.05)"
-                        : "white",
-                    color:
-                      currentPage === totalPages
-                        ? "rgba(74, 64, 54, 0.4)"
-                        : "#4a4036",
-                    cursor:
-                      currentPage === totalPages
-                        ? "not-allowed"
-                        : "pointer",
-                  }}
-                >
-                  Next
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                  <h3 style={{ margin: 0, fontSize: "1.1rem" }}>Processed Invoices</h3>
+                  <span
+                    style={{
+                      fontSize: "0.85rem",
+                      color: "var(--muted-foreground)",
+                      background: "rgba(139, 121, 104, 0.05)",
+                      padding: "0.25rem 0.75rem",
+                      borderRadius: "1rem",
+                    }}
+                  >
+                    Showing {startIndex + 1}–{Math.min(endIndex, processedInvoices.length)} of{" "}
+                    {processedInvoices.length}
+                  </span>
+                </div>
               </div>
-            )}
+              <table className="styled-table">
+                <thead>
+                  <tr>
+                    <th>Invoice No.</th>
+                    <th>Customer</th>
+                    <th>Date</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
 
+                <tbody>
+                  <AnimatePresence>
+                    {currentInvoices.map((inv) => (
+                      <motion.tr
+                        key={inv.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <td style={{ fontWeight: 600 }}>{inv.invoiceNumber}</td>
+
+                        <td>{inv.customerName}</td>
+
+                        <td style={{ color: "var(--muted-foreground)", fontSize: "0.875rem" }}>
+                          {inv.invoiceDate}
+                        </td>
+
+                        <td>
+                          ₹{inv.amount.toLocaleString()}
+                        </td>
+
+                        <td>
+                          {renderStatusBadge(inv.status)}
+
+                          {inv.error && (
+                            <div className="error-text">
+                              <AlertTriangle size={14} /> {inv.error}
+                            </div>
+                          )}
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </AnimatePresence>
+                </tbody>
+              </table>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    marginTop: "1.5rem",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  {/* Previous Button */}
+                  <button
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.max(prev - 1, 1))
+                    }
+                    disabled={currentPage === 1}
+                    style={{
+                      padding: "0.5rem 0.9rem",
+                      borderRadius: "0.5rem",
+                      border: "1px solid var(--border)",
+                      background:
+                        currentPage === 1
+                          ? "rgba(139, 121, 104, 0.05)"
+                          : "white",
+                      color:
+                        currentPage === 1
+                          ? "rgba(74, 64, 54, 0.4)"
+                          : "#4a4036",
+                      cursor:
+                        currentPage === 1
+                          ? "not-allowed"
+                          : "pointer",
+                    }}
+                  >
+                    Previous
+                  </button>
+
+                  {/* Page Numbers */}
+                  {Array.from({ length: totalPages }, (_, index) => index + 1).map(
+                    (page) => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        style={{
+                          minWidth: "40px",
+                          padding: "0.5rem 0.75rem",
+                          borderRadius: "0.5rem",
+                          border: "1px solid var(--border)",
+                          background:
+                            currentPage === page
+                              ? "var(--primary)"
+                              : "white",
+                          color:
+                            currentPage === page
+                              ? "white"
+                              : "#4a4036",
+                          fontWeight:
+                            currentPage === page ? 700 : 500,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {page}
+                      </button>
+                    )
+                  )}
+
+                  {/* Next Button */}
+                  <button
+                    onClick={() =>
+                      setCurrentPage((prev) =>
+                        Math.min(prev + 1, totalPages)
+                      )
+                    }
+                    disabled={currentPage === totalPages}
+                    style={{
+                      padding: "0.5rem 0.9rem",
+                      borderRadius: "0.5rem",
+                      border: "1px solid var(--border)",
+                      background:
+                        currentPage === totalPages
+                          ? "rgba(139, 121, 104, 0.05)"
+                          : "white",
+                      color:
+                        currentPage === totalPages
+                          ? "rgba(74, 64, 54, 0.4)"
+                          : "#4a4036",
+                      cursor:
+                        currentPage === totalPages
+                          ? "not-allowed"
+                          : "pointer",
+                    }}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </div>
           </motion.div>
-        ) : (
-          !isLoadingInvoices && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              style={{
-                marginTop: "2.5rem",
-                padding: "2.5rem 1.5rem",
-                textAlign: "center",
-                background: "rgba(139, 121, 104, 0.03)",
-                borderRadius: "0.75rem",
-                border: "1px dashed var(--border)",
-              }}
-            >
-              <FileText
-                size={32}
-                style={{
-                  margin: "0 auto 0.75rem auto",
-                  color: "var(--muted-foreground)",
-                  opacity: 0.6,
-                }}
-              />
-              <p style={{ color: "var(--muted-foreground)", fontSize: "0.95rem", margin: 0 }}>
-                No invoices found for this account ID.
-              </p>
-              <p style={{ color: "rgba(74, 64, 54, 0.5)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
-                Upload a CSV file above to process and match invoices.
-              </p>
-            </motion.div>
-          )
         )}
 
         <AnimatePresence>
@@ -759,6 +729,8 @@ export default function DashboardPage() {
                 onClick={() => {
                   setFile(null);
                   setProgress(0);
+                  setProcessedInvoices([]);
+                  setCurrentPage(1);
                   if (user) {
                     fetchInvoices(user.id);
                   }
@@ -820,6 +792,18 @@ export default function DashboardPage() {
                   <h2 style={{ fontSize: "1.25rem", fontWeight: 700, margin: 0, color: "#4a4036" }}>
                     Invoice History
                   </h2>
+                  <span
+                    style={{
+                      fontSize: "0.8rem",
+                      background: "rgba(181, 154, 122, 0.2)",
+                      color: "var(--primary)",
+                      padding: "0.2rem 0.6rem",
+                      borderRadius: "1rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {historyInvoices.length}
+                  </span>
                 </div>
                 <button
                   onClick={() => setIsHistoryOpen(false)}
@@ -844,9 +828,9 @@ export default function DashboardPage() {
 
               {/* Minimal Invoices List (Only the invoices) */}
               <div style={{ flex: 1, overflowY: "auto", padding: "1.25rem 1.5rem" }}>
-                {invoices.length > 0 ? (
+                {historyInvoices.length > 0 ? (
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                    {invoices.map((inv) => (
+                    {historyInvoices.map((inv) => (
                       <div
                         key={inv.id}
                         style={{
@@ -887,7 +871,7 @@ export default function DashboardPage() {
                   >
                     <FileText size={36} style={{ margin: "0 auto 1rem auto", opacity: 0.4 }} />
                     <p style={{ margin: 0, fontSize: "0.95rem", color: "#8b7968" }}>
-                      No invoices found in history.
+                      {isLoadingHistory ? "Loading history..." : "No invoices found in history."}
                     </p>
                   </div>
                 )}
