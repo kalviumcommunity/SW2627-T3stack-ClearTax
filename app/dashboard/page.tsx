@@ -387,7 +387,7 @@ export default function DashboardPage() {
       console.error("Failed to fetch invoices:", error);
       setInvoices([]);
     } finally {
-      setIsLoadingInvoices(false);
+      setIsLoadingHistory(false);
     }
   }, []);
 
@@ -1663,6 +1663,18 @@ export default function DashboardPage() {
                   >
                     Invoice History
                   </h2>
+                  <span
+                    style={{
+                      fontSize: "0.8rem",
+                      background: "rgba(181, 154, 122, 0.2)",
+                      color: "var(--primary)",
+                      padding: "0.2rem 0.6rem",
+                      borderRadius: "1rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {historyInvoices.length}
+                  </span>
                 </div>
 
                 <button
