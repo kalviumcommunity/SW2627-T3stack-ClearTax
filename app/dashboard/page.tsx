@@ -291,6 +291,7 @@ export default function DashboardPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
+  const [historyInvoices, setHistoryInvoices] = useState<InvoiceRecord[]>([]);
   const [isLoadingInvoices, setIsLoadingInvoices] = useState(true);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] =
@@ -382,12 +383,17 @@ export default function DashboardPage() {
           ? result.data.map(normalizeInvoice)
           : []
       );
+      setHistoryInvoices(
+  Array.isArray(result.data)
+    ? result.data.map(normalizeInvoice)
+    : []
+);
       setCurrentPage(1);
     } catch (error) {
       console.error("Failed to fetch invoices:", error);
       setInvoices([]);
     } finally {
-      setIsLoadingHistory(false);
+      setIsLoadingInvoices(false);
     }
   }, []);
 
@@ -488,6 +494,9 @@ export default function DashboardPage() {
 
       if (Array.isArray(result.data)) {
         setInvoices(result.data.map(normalizeInvoice));
+        setHistoryInvoices(
+  result.data.map(normalizeInvoice)
+);
         setCurrentPage(1);
       }
 
@@ -1704,7 +1713,7 @@ export default function DashboardPage() {
                   padding: "1.25rem 1.5rem",
                 }}
               >
-                {invoices.length > 0 ? (
+                {historyInvoices.length > 0 ? (
                   <div
                     style={{
                       display: "flex",
@@ -1712,7 +1721,7 @@ export default function DashboardPage() {
                       gap: "0.7rem",
                     }}
                   >
-                    {[...invoices].reverse().map((invoice) => (
+                    {[...historyInvoices].reverse().map((invoice) => (
                       <button
                         type="button"
                         key={invoice.id}
@@ -1807,3 +1816,5 @@ export default function DashboardPage() {
     </main>
   );
 }
+
+
