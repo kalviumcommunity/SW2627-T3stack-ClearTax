@@ -1,42 +1,286 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  UploadCloud,
-  CheckCircle2,
   AlertTriangle,
-  XCircle,
+  CheckCircle2,
+  Clock3,
+  Eye,
   FileText,
-  LogOut,
-  User as UserIcon,
   History,
+  LogOut,
+  UploadCloud,
+  User as UserIcon,
   X,
+  XCircle,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 
-type InvoiceStatus =
-  | "pending"
-  | "processing"
+type PaymentStatus =
   | "matched"
-  | "mismatch"
+  | "partially_paid"
+  | "unpaid"
+  | "overpaid"
   | "failed";
 
+type TimingStatus =
+  | "on_time"
+  | "late"
+  | "overdue"
+  | "pending"
+  | "not_available"
+  | "invalid";
+
 interface InvoiceRecord {
-  id: number;
+  id: number | string;
+  userId: string;
   invoiceNumber: string;
-  customerName: string;
   invoiceDate: string;
-  amount: number;
-  gstNumber: string;
-  status: InvoiceStatus;
+  dueDate: string | null;
+  contact: string;
+  customerName: string;
+  currency: string;
+  amount: number | null;
+  tax: number;
+  totalAmount: number | null;
+  paidAmount: number;
+  amountDue: number | null;
+  paidDate: string | null;
+  paymentStatus: PaymentStatus;
+  timingStatus: TimingStatus;
+  gstNumber?: string;
   error: string | null;
+  createdAt?: string;
 }
 
 interface UserSession {
   id: string;
   name: string;
   email: string;
+}
+
+function normalizeInvoice(raw: any): InvoiceRecord {
+  const amount =
+    raw?.amount === null || raw?.amount === undefined
+      ? null
+      : Number(raw.amount);
+
+  const tax =
+    raw?.tax === null || raw?.tax === undefined ? 0 : Number(raw.tax);
+
+  const totalAmount =
+    raw?.totalAmount === null || raw?.totalAmount === undefined
+      ? amount === null
+        ? null
+        : amount + tax
+      : Number(raw.totalAmount);
+
+  const paidAmount =
+    raw?.paidAmount === null || raw?.paidAmount === undefined
+      ? 0
+      : Number(raw.paidAmount);
+
+  const amountDue =
+    raw?.amountDue === null || raw?.amountDue === undefined
+      ? totalAmount === null
+        ? null
+        : totalAmount - paidAmount
+      : Number(raw.amountDue);
+
+  const paymentStatus =
+    raw?.paymentStatus ||
+    (raw?.status === "matched" ? "matched" : raw?.status) ||
+    "failed";
+
+  const timingStatus = raw?.timingStatus || "not_available";
+
+  return {
+    id: raw?.id,
+    userId: String(raw?.userId ?? raw?.user_id ?? ""),
+    invoiceNumber: String(raw?.invoiceNumber ?? raw?.invoice_number ?? ""),
+    invoiceDate: String(raw?.invoiceDate ?? raw?.invoice_date ?? ""),
+    dueDate: raw?.dueDate ?? raw?.due_date ?? null,
+    contact: String(raw?.contact ?? raw?.customerName ?? raw?.customer_name ?? ""),
+    customerName: String(
+      raw?.customerName ?? raw?.customer_name ?? raw?.contact ?? ""
+    ),
+    currency: String(raw?.currency ?? "INR"),
+    amount,
+    tax,
+    totalAmount,
+    paidAmount,
+    amountDue,
+    paidDate: raw?.paidDate ?? raw?.paid_date ?? null,
+    paymentStatus,
+    timingStatus,
+    gstNumber: raw?.gstNumber ?? raw?.gst_number ?? "",
+    error: raw?.error ?? null,
+    createdAt: raw?.createdAt ?? raw?.created_at,
+  } as InvoiceRecord;
+}
+
+function formatMoney(value: number | null, currency = "INR") {
+  if (value === null || Number.isNaN(value)) return "N/A";
+
+  try {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    }).format(value);
+  } catch {
+    return `${currency} ${value.toLocaleString("en-IN", {
+      maximumFractionDigits: 2,
+    })}`;
+  }
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return "N/A";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function paymentLabel(status: PaymentStatus) {
+  switch (status) {
+    case "matched":
+      return "Matched";
+    case "partially_paid":
+      return "Partially Paid";
+    case "unpaid":
+      return "Unpaid";
+    case "overpaid":
+      return "Overpaid";
+    default:
+      return "Failed";
+  }
+}
+
+function timingLabel(status: TimingStatus) {
+  switch (status) {
+    case "on_time":
+      return "On Time";
+    case "late":
+      return "Late";
+    case "overdue":
+      return "Overdue";
+    case "pending":
+      return "Pending";
+    case "invalid":
+      return "Invalid";
+    default:
+      return "N/A";
+  }
+}
+
+function paymentStyle(status: PaymentStatus): React.CSSProperties {
+  const base: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "0.35rem",
+    padding: "0.35rem 0.65rem",
+    borderRadius: "999px",
+    fontSize: "0.75rem",
+    fontWeight: 700,
+    whiteSpace: "nowrap",
+  };
+
+  switch (status) {
+    case "matched":
+      return {
+        ...base,
+        background: "#dcfce7",
+        color: "#166534",
+        border: "1px solid #bbf7d0",
+      };
+    case "partially_paid":
+      return {
+        ...base,
+        background: "#fef3c7",
+        color: "#92400e",
+        border: "1px solid #fde68a",
+      };
+    case "unpaid":
+      return {
+        ...base,
+        background: "#f3f4f6",
+        color: "#4b5563",
+        border: "1px solid #e5e7eb",
+      };
+    case "overpaid":
+      return {
+        ...base,
+        background: "#ede9fe",
+        color: "#6d28d9",
+        border: "1px solid #ddd6fe",
+      };
+    default:
+      return {
+        ...base,
+        background: "#fee2e2",
+        color: "#991b1b",
+        border: "1px solid #fecaca",
+      };
+  }
+}
+
+function timingStyle(status: TimingStatus): React.CSSProperties {
+  const base: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "0.35rem",
+    padding: "0.35rem 0.65rem",
+    borderRadius: "999px",
+    fontSize: "0.75rem",
+    fontWeight: 700,
+    whiteSpace: "nowrap",
+  };
+
+  switch (status) {
+    case "on_time":
+      return {
+        ...base,
+        background: "#dcfce7",
+        color: "#166534",
+        border: "1px solid #bbf7d0",
+      };
+    case "late":
+      return {
+        ...base,
+        background: "#ffedd5",
+        color: "#9a3412",
+        border: "1px solid #fed7aa",
+      };
+    case "overdue":
+      return {
+        ...base,
+        background: "#fee2e2",
+        color: "#991b1b",
+        border: "1px solid #fecaca",
+      };
+    case "pending":
+      return {
+        ...base,
+        background: "#fef3c7",
+        color: "#92400e",
+        border: "1px solid #fde68a",
+      };
+    default:
+      return {
+        ...base,
+        background: "#f3f4f6",
+        color: "#6b7280",
+        border: "1px solid #e5e7eb",
+      };
+  }
 }
 
 export default function DashboardPage() {
@@ -46,115 +290,172 @@ export default function DashboardPage() {
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [processedInvoices, setProcessedInvoices] = useState<InvoiceRecord[]>([]);
-  const [historyInvoices, setHistoryInvoices] = useState<InvoiceRecord[]>([]);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
-
-  // Pagination for current processed batch
-  const [currentPage, setCurrentPage] = useState(1);
-  const ITEM_PER_PAGE = 15;
-
-  const totalPages = Math.ceil(processedInvoices.length / ITEM_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEM_PER_PAGE;
-  const endIndex = startIndex + ITEM_PER_PAGE;
-  const currentInvoices = processedInvoices.slice(startIndex, endIndex);
-  const totalInvoices = processedInvoices.length;
-
-  const matchedInvoices = processedInvoices.filter((invoice) => invoice.status === "matched").length;
-  const mismatchedInvoices = processedInvoices.filter((invoice) => invoice.status === "mismatch").length;
-
-  // Minimal History state
+  const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
+  const [isLoadingInvoices, setIsLoadingInvoices] = useState(true);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] =
+    useState<InvoiceRecord | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch invoices for active user history
+  const ITEMS_PER_PAGE = 15;
+
+  const totalInvoices = invoices.length;
+  const matchedInvoices = invoices.filter(
+    (invoice) => invoice.paymentStatus === "matched"
+  ).length;
+  const partiallyPaidInvoices = invoices.filter(
+    (invoice) => invoice.paymentStatus === "partially_paid"
+  ).length;
+  const unpaidInvoices = invoices.filter(
+    (invoice) => invoice.paymentStatus === "unpaid"
+  ).length;
+  const overpaidInvoices = invoices.filter(
+    (invoice) => invoice.paymentStatus === "overpaid"
+  ).length;
+  const failedInvoices = invoices.filter(
+    (invoice) => invoice.paymentStatus === "failed"
+  ).length;
+  const overdueInvoices = invoices.filter(
+    (invoice) => invoice.timingStatus === "overdue"
+  ).length;
+
+  const invoiceValue = invoices.reduce(
+    (sum, invoice) => sum + (invoice.amount ?? 0),
+    0
+  );
+  const totalTax = invoices.reduce(
+    (sum, invoice) => sum + (invoice.tax ?? 0),
+    0
+  );
+  const totalPayable = invoices.reduce(
+    (sum, invoice) => sum + (invoice.totalAmount ?? 0),
+    0
+  );
+  const totalPaid = invoices.reduce(
+    (sum, invoice) => sum + (invoice.paidAmount ?? 0),
+    0
+  );
+  const outstanding = invoices.reduce(
+    (sum, invoice) =>
+      sum + Math.max(invoice.amountDue ?? 0, 0),
+    0
+  );
+  const totalOverpaid = invoices.reduce(
+    (sum, invoice) =>
+      sum +
+      Math.max(
+        (invoice.paidAmount ?? 0) - (invoice.totalAmount ?? 0),
+        0
+      ),
+    0
+  );
+
+  const totalPages = Math.max(1, Math.ceil(totalInvoices / ITEMS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const currentInvoices = invoices.slice(startIndex, endIndex);
+
   const fetchInvoices = useCallback(async (userId: string) => {
-    setIsLoadingHistory(true);
+    setIsLoadingInvoices(true);
+
     try {
-      const response = await fetch(`/api/invoices?userId=${encodeURIComponent(userId)}`, {
-        headers: {
-          "x-user-id": userId,
-        },
-      });
+      const response = await fetch(
+        `/api/invoices?userId=${encodeURIComponent(userId)}`,
+        {
+          headers: {
+            "x-user-id": userId,
+          },
+        }
+      );
 
       const result = await response.json();
-      if (result.success) {
-        setHistoryInvoices(result.data || []);
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to fetch invoices");
       }
+
+      setInvoices(
+        Array.isArray(result.data)
+          ? result.data.map(normalizeInvoice)
+          : []
+      );
+      setCurrentPage(1);
     } catch (error) {
-      console.error("Failed to fetch history invoices:", error);
+      console.error("Failed to fetch invoices:", error);
+      setInvoices([]);
     } finally {
       setIsLoadingHistory(false);
     }
   }, []);
 
-  // Check user session
   useEffect(() => {
     try {
       const stored = localStorage.getItem("cleartax_user");
+
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (parsed && parsed.id) {
-          queueMicrotask(() => {
-            setUser(parsed);
-            fetchInvoices(parsed.id);
-          });
+
+        if (parsed?.id) {
+          setUser(parsed);
+          fetchInvoices(parsed.id);
           return;
         }
       }
-    } catch {
-      // Fallback
+    } catch (error) {
+      console.error("Failed to restore session:", error);
     }
 
-    // If no active session, redirect to login
     router.push("/login");
-  }, [router, fetchInvoices]);
+  }, [fetchInvoices, router]);
 
   const handleLogout = () => {
     localStorage.removeItem("cleartax_user");
     router.push("/login");
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
+  const handleDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
     setIsDragging(true);
   };
 
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
+  const handleDragLeave = (event: React.DragEvent) => {
+    event.preventDefault();
     setIsDragging(false);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
+  const handleDrop = (event: React.DragEvent) => {
+    event.preventDefault();
     setIsDragging(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFile(e.dataTransfer.files[0]);
+    if (event.dataTransfer.files?.length) {
+      handleFile(event.dataTransfer.files[0]);
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      handleFile(e.target.files[0]);
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files?.length) {
+      handleFile(event.target.files[0]);
     }
   };
 
   const handleFile = (selectedFile: File) => {
     if (
       selectedFile.type !== "text/csv" &&
-      !selectedFile.name.endsWith(".csv")
+      !selectedFile.name.toLowerCase().endsWith(".csv")
     ) {
       alert("Please upload a valid CSV file.");
       return;
     }
 
     setFile(selectedFile);
+    setProgress(0);
   };
 
   const startProcessing = async () => {
-    if (!file || !user) return;
+    if (!file || !user || isProcessing) return;
 
     try {
       setIsProcessing(true);
@@ -171,7 +472,10 @@ export default function DashboardPage() {
         body: formData,
       });
 
+      setProgress(75);
+
       const text = await response.text();
+
       if (!text) {
         throw new Error("Server returned an empty response");
       }
@@ -182,17 +486,16 @@ export default function DashboardPage() {
         throw new Error(result.message || "Failed to process invoices");
       }
 
-      setProgress(100);
-
-      if (result.data && Array.isArray(result.data)) {
-        setProcessedInvoices(result.data);
+      if (Array.isArray(result.data)) {
+        setInvoices(result.data.map(normalizeInvoice));
         setCurrentPage(1);
       }
 
-      // Refresh invoices history for active user
-      await fetchInvoices(user.id);
+      setProgress(100);
     } catch (error) {
       console.error("Processing error:", error);
+      setProgress(0);
+
       alert(
         error instanceof Error
           ? error.message
@@ -203,209 +506,423 @@ export default function DashboardPage() {
     }
   };
 
-  const renderStatusBadge = (status: InvoiceStatus) => {
-    switch (status) {
-      case "pending":
-        return (
-          <span className="badge badge-warning">
-            <AlertTriangle size={16} /> Pending
-          </span>
-        );
-
-      case "processing":
-        return (
-          <span className="badge">
-            <FileText size={16} /> Processing
-          </span>
-        );
-
-      case "matched":
-        return (
-          <span className="badge badge-success">
-            <CheckCircle2 size={16} /> Matched
-          </span>
-        );
-
-      case "mismatch":
-        return (
-          <span className="badge badge-warning">
-            <AlertTriangle size={16} /> Mismatch
-          </span>
-        );
-
-      case "failed":
-        return (
-          <span className="badge badge-error">
-            <XCircle size={16} /> Failed
-          </span>
-        );
-    }
-  };
-
   const containerVariants: import("framer-motion").Variants = {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
-      transition: { staggerChildren: 0.15 },
+      transition: { staggerChildren: 0.08 },
     },
   };
 
   const itemVariants: import("framer-motion").Variants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 16 },
     show: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.4 },
+      transition: { duration: 0.35 },
     },
   };
 
-  return (
-    <main className="container" style={{ paddingTop: "2rem", paddingBottom: "4rem" }}>
-      {/* Top Navigation Bar with User Info & Actions */}
+  const summaryCard = (
+    label: string,
+    value: string | number,
+    icon: React.ReactNode,
+    accent = "var(--primary)"
+  ) => (
+    <div
+      style={{
+        background: "#ffffff",
+        border: "1px solid var(--border)",
+        borderRadius: "0.85rem",
+        padding: "1rem",
+        minHeight: "105px",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+      }}
+    >
       <div
         style={{
           display: "flex",
-          justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: "2rem",
-          padding: "1rem 1.5rem",
-          background: "rgba(139, 121, 104, 0.05)",
-          backdropFilter: "blur(12px)",
-          borderRadius: "1rem",
-          border: "1px solid var(--border)",
+          justifyContent: "space-between",
+          gap: "0.5rem",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <div
-            style={{
-              background: "rgba(181, 154, 122, 0.15)",
-              color: "var(--primary)",
-              padding: "0.5rem",
-              borderRadius: "50%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <UserIcon size={20} />
-          </div>
-          <div>
-            <div style={{ fontWeight: 600, color: "#4a4036", fontSize: "0.95rem" }}>
-              {user?.name || "Account"}
-            </div>
-            <div style={{ fontSize: "0.8rem", color: "var(--muted-foreground)" }}>
-              {user?.email || ""}
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <button
-            onClick={() => setIsHistoryOpen(true)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              background: "rgba(181, 154, 122, 0.15)",
-              color: "var(--primary)",
-              border: "1px solid rgba(181, 154, 122, 0.3)",
-              padding: "0.5rem 1rem",
-              borderRadius: "0.5rem",
-              fontSize: "0.875rem",
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(181, 154, 122, 0.25)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "rgba(181, 154, 122, 0.15)";
-            }}
-          >
-            <History size={16} /> History
-          </button>
-
-          <button
-            onClick={handleLogout}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              background: "rgba(239, 68, 68, 0.1)",
-              color: "#f87171",
-              border: "1px solid rgba(239, 68, 68, 0.2)",
-              padding: "0.5rem 1rem",
-              borderRadius: "0.5rem",
-              fontSize: "0.875rem",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(239, 68, 68, 0.2)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "rgba(239, 68, 68, 0.1)";
-            }}
-          >
-            <LogOut size={16} /> Sign Out
-          </button>
-        </div>
+        <span
+          style={{
+            fontSize: "0.82rem",
+            color: "var(--muted-foreground)",
+            fontWeight: 600,
+          }}
+        >
+          {label}
+        </span>
+        <span style={{ color: accent }}>{icon}</span>
       </div>
 
+      <div
+        style={{
+          marginTop: "0.5rem",
+          fontSize: "1.8rem",
+          fontWeight: 800,
+          color: "#3f352c",
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+
+  return (
+    <main
+      className="container"
+      style={{
+        paddingTop: "2rem",
+        paddingBottom: "4rem",
+      }}
+    >
       <motion.div
-        className="card"
         variants={containerVariants}
         initial="hidden"
         animate="show"
       >
-        <motion.h1 variants={itemVariants}>
-          ClearTax Bulk Upload
-        </motion.h1>
-
-        <motion.p variants={itemVariants} className="subtitle">
-          Securely upload and process your invoices in the background for account:{" "}
-          <span style={{ color: "var(--primary)", fontWeight: 500 }}>
-            {user?.email}
-          </span>
-        </motion.p>
-
-        <AnimatePresence mode="wait">
-          {!isProcessing && progress === 0 && (
-            <motion.div
-              key="upload-zone"
-              variants={itemVariants}
-              initial="hidden"
-              animate="show"
-              exit={{
-                opacity: 0,
-                scale: 0.95,
-                transition: { duration: 0.2 },
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "1.5rem",
+            padding: "1rem 1.25rem",
+            background: "#faf8f4",
+            border: "1px solid var(--border)",
+            borderRadius: "1rem",
+            gap: "1rem",
+            flexWrap: "wrap",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.75rem",
+            }}
+          >
+            <div
+              style={{
+                width: "42px",
+                height: "42px",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "#ede5da",
+                color: "var(--primary)",
               }}
-              className={`upload-zone ${isDragging ? "drag-active" : ""}`}
+            >
+              <UserIcon size={20} />
+            </div>
+
+            <div>
+              <div
+                style={{
+                  fontWeight: 700,
+                  color: "#3f352c",
+                  fontSize: "0.95rem",
+                }}
+              >
+                {user?.name || "Account"}
+              </div>
+              <div
+                style={{
+                  fontSize: "0.8rem",
+                  color: "var(--muted-foreground)",
+                }}
+              >
+                {user?.email || ""}
+              </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.75rem",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setIsHistoryOpen(true)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.45rem",
+                background: "#ede5da",
+                color: "var(--primary)",
+                border: "1px solid var(--border)",
+                padding: "0.6rem 0.95rem",
+                borderRadius: "0.6rem",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              <History size={16} />
+              History
+            </button>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.45rem",
+                background: "#fff1f2",
+                color: "#b91c1c",
+                border: "1px solid #fecaca",
+                padding: "0.6rem 0.95rem",
+                borderRadius: "0.6rem",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              <LogOut size={16} />
+              Sign Out
+            </button>
+          </div>
+        </div>
+
+        <motion.div
+          variants={itemVariants}
+          className="card"
+          style={{
+            padding: "1.5rem",
+            width: "100%",
+            maxWidth: "100%",
+            minWidth: 0,
+            overflow: "hidden",
+            boxSizing: "border-box",
+          }}
+        >
+          <motion.h1
+            variants={itemVariants}
+            style={{
+              marginBottom: "0.5rem",
+              color: "#3f352c",
+            }}
+          >
+            ClearTax Bulk Invoice Reconciliation
+          </motion.h1>
+
+          <motion.p
+            variants={itemVariants}
+            className="subtitle"
+            style={{ marginBottom: "1.5rem" }}
+          >
+            Upload a controlled CSV, process invoices in bulk, and review
+            payment reconciliation and timing status from one dashboard.
+          </motion.p>
+
+          <motion.div variants={itemVariants}>
+            <div
+              style={{
+                background: "#faf8f4",
+                border: "1px solid var(--border)",
+                borderRadius: "1rem",
+                padding: "1.25rem",
+              }}
+            >
+              <div
+                style={{
+                  marginBottom: "1rem",
+                  fontWeight: 800,
+                  color: "#3f352c",
+                }}
+              >
+                Reconciliation Summary
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                  gap: "0.9rem",
+                }}
+              >
+                {summaryCard(
+                  "Total Invoices",
+                  totalInvoices,
+                  <FileText size={18} />
+                )}
+                {summaryCard(
+                  "Matched",
+                  matchedInvoices,
+                  <CheckCircle2 size={18} />,
+                  "#16a34a"
+                )}
+                {summaryCard(
+                  "Partially Paid",
+                  partiallyPaidInvoices,
+                  <Clock3 size={18} />,
+                  "#d97706"
+                )}
+                {summaryCard(
+                  "Unpaid",
+                  unpaidInvoices,
+                  <AlertTriangle size={18} />,
+                  "#6b7280"
+                )}
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                  gap: "0.9rem",
+                  maxWidth: "75%",
+                  margin: "0.9rem auto 0",
+                }}
+              >
+                {summaryCard(
+                  "Overpaid",
+                  overpaidInvoices,
+                  <CheckCircle2 size={18} />,
+                  "#7c3aed"
+                )}
+                {summaryCard(
+                  "Failed",
+                  failedInvoices,
+                  <XCircle size={18} />,
+                  "#dc2626"
+                )}
+                {summaryCard(
+                  "Overdue",
+                  overdueInvoices,
+                  <Clock3 size={18} />,
+                  "#dc2626"
+                )}
+              </div>
+            </div>
+
+            <div
+              style={{
+                marginTop: "1.25rem",
+                background: "#f7f3ed",
+                border: "1px solid var(--border)",
+                borderRadius: "1rem",
+                padding: "1.25rem",
+              }}
+            >
+              <div
+                style={{
+                  marginBottom: "1rem",
+                  fontWeight: 800,
+                  color: "#3f352c",
+                }}
+              >
+                Financial Overview
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                  gap: "0.9rem",
+                }}
+              >
+                {summaryCard(
+                  "Invoice Value",
+                  formatMoney(invoiceValue),
+                  <FileText size={18} />
+                )}
+                {summaryCard(
+                  "Total Tax",
+                  formatMoney(totalTax),
+                  <FileText size={18} />
+                )}
+                {summaryCard(
+                  "Total Payable",
+                  formatMoney(totalPayable),
+                  <FileText size={18} />
+                )}
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                  gap: "0.9rem",
+                  marginTop: "0.9rem",
+                }}
+              >
+                {summaryCard(
+                  "Total Paid",
+                  formatMoney(totalPaid),
+                  <CheckCircle2 size={18} />,
+                  "#16a34a"
+                )}
+                {summaryCard(
+                  "Outstanding",
+                  formatMoney(outstanding),
+                  <AlertTriangle size={18} />,
+                  "#d97706"
+                )}
+                {summaryCard(
+                  "Overpaid",
+                  formatMoney(totalOverpaid),
+                  <CheckCircle2 size={18} />,
+                  "#7c3aed"
+                )}
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            variants={itemVariants}
+            style={{ marginTop: "1.5rem" }}
+          >
+            <div
+              className={`upload-zone ${
+                isDragging ? "drag-active" : ""
+              }`}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
+              style={{
+                minHeight: "190px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
             >
               <input
+                ref={fileInputRef}
                 type="file"
                 accept=".csv"
-                className="hidden"
-                ref={fileInputRef}
                 onChange={handleFileChange}
                 style={{ display: "none" }}
               />
 
               {file ? (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex flex-col items-center"
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    textAlign: "center",
+                    padding: "1rem",
+                  }}
                 >
-                  <FileText className="upload-icon" />
+                  <FileText
+                    className="upload-icon"
+                    style={{ marginBottom: "0.5rem" }}
+                  />
 
-                  <h3>{file.name}</h3>
+                  <h3 style={{ marginBottom: "0.25rem" }}>
+                    {file.name}
+                  </h3>
 
                   <p
                     className="subtitle"
@@ -415,293 +932,379 @@ export default function DashboardPage() {
                   </p>
 
                   <button
+                    type="button"
                     className="btn-primary"
-                    onClick={(e) => {
-                      e.stopPropagation();
+                    disabled={isProcessing}
+                    onClick={(event) => {
+                      event.stopPropagation();
                       startProcessing();
                     }}
-                    style={{ marginTop: "1.5rem" }}
+                    style={{ marginTop: "1.25rem" }}
                   >
-                    Process CSV Now
+                    {isProcessing
+                      ? "Processing..."
+                      : "Process CSV Now"}
                   </button>
-                </motion.div>
+                </div>
               ) : (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex flex-col items-center"
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    textAlign: "center",
+                    padding: "1rem",
+                  }}
                 >
-                  <UploadCloud className="upload-icon" />
-
-                  <h3>Drag & Drop your CSV here</h3>
-
-                  <p>
+                  <UploadCloud
+                    className="upload-icon"
+                    style={{ marginBottom: "0.5rem" }}
+                  />
+                  <h3 style={{ marginBottom: "0.35rem" }}>
+                    Drag & Drop your CSV here
+                  </h3>
+                  <p style={{ margin: 0 }}>
                     or click to browse files from your computer
                   </p>
-                </motion.div>
+                </div>
               )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+          </motion.div>
 
-        <AnimatePresence>
-          {(isProcessing || progress > 0) && (
+          <AnimatePresence>
+            {(isProcessing || progress > 0) && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="progress-container"
+                style={{ marginTop: "1rem" }}
+              >
+                <div className="progress-header">
+                  <span>
+                    {isProcessing
+                      ? "Processing Invoices..."
+                      : "Processing Complete"}
+                  </span>
+                  <span>{progress}%</span>
+                </div>
+
+                <div className="progress-bar-bg">
+                  <div
+                    className="progress-bar-fill"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {invoices.length > 0 ? (
             <motion.div
-              key="progress"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              className="progress-container"
-            >
-              <div className="progress-header">
-                <span>
-                  {isProcessing
-                    ? "Processing Invoices..."
-                    : "Processing Complete"}
-                </span>
-
-                <span>{progress}%</span>
-              </div>
-
-              <div className="progress-bar-bg">
-                <div
-                  className="progress-bar-fill"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {processedInvoices.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            style={{ marginTop: "2rem" }}
-          >
-            {/* Batch Stats */}
-            <div
+              variants={itemVariants}
               style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3, 1fr)",
-                gap: "1rem",
-                marginBottom: "2rem",
+                marginTop: "1.5rem",
+                overflowX: "auto",
               }}
             >
-              {/* Total Processed */}
-              <div
-                style={{
-                  padding: "1rem",
-                  border: "1px solid var(--border)",
-                  borderRadius: "0.75rem",
-                  textAlign: "center",
-                }}
-              >
-                <div style={{ fontSize: "0.85rem", color: "var(--muted-foreground)" }}>
-                  Total Invoices
-                </div>
-                <div style={{ fontSize: "2rem", fontWeight: 700 }}>
-                  {totalInvoices}
-                </div>
-              </div>
-
-              {/* Matched */}
-              <div
-                style={{
-                  padding: "1rem",
-                  border: "1px solid var(--border)",
-                  borderRadius: "0.75rem",
-                  textAlign: "center",
-                }}
-              >
-                <div style={{ fontSize: "0.85rem", color: "var(--muted-foreground)" }}>
-                  Matched
-                </div>
-                <div style={{ fontSize: "2rem", fontWeight: 700, color: "#16a34a" }}>
-                  {matchedInvoices}
-                </div>
-              </div>
-
-              {/* Mismatched */}
-              <div
-                style={{
-                  padding: "1rem",
-                  border: "1px solid var(--border)",
-                  borderRadius: "0.75rem",
-                  textAlign: "center",
-                }}
-              >
-                <div style={{ fontSize: "0.85rem", color: "var(--muted-foreground)" }}>
-                  Mismatched
-                </div>
-                <div style={{ fontSize: "2rem", fontWeight: 700, color: "#dc2626" }}>
-                  {mismatchedInvoices}
-                </div>
-              </div>
-            </div>
-
-            {/* Invoices List Table */}
-            <div className="table-container">
               <div
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
+                  gap: "1rem",
                   marginBottom: "1rem",
+                  flexWrap: "wrap",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                  <h3 style={{ margin: 0, fontSize: "1.1rem" }}>Processed Invoices</h3>
+                <div>
+                  <h3 style={{ margin: 0 }}>Invoices</h3>
                   <span
                     style={{
-                      fontSize: "0.85rem",
+                      display: "block",
+                      marginTop: "0.25rem",
+                      fontSize: "0.82rem",
                       color: "var(--muted-foreground)",
-                      background: "rgba(139, 121, 104, 0.05)",
-                      padding: "0.25rem 0.75rem",
-                      borderRadius: "1rem",
                     }}
                   >
-                    Showing {startIndex + 1}–{Math.min(endIndex, processedInvoices.length)} of{" "}
-                    {processedInvoices.length}
+                    Showing {startIndex + 1}–
+                    {Math.min(endIndex, invoices.length)} of{" "}
+                    {invoices.length}
                   </span>
                 </div>
+
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => {
+                    setFile(null);
+                    setProgress(0);
+                    setInvoices([]);
+                    setCurrentPage(1);
+                  }}
+                  style={{
+                    padding: "0.65rem 1rem",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  Upload Another Batch
+                </button>
               </div>
-              <table className="styled-table">
-                <thead>
-                  <tr>
-                    <th>Invoice No.</th>
-                    <th>Customer</th>
-                    <th>Date</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
 
-                <tbody>
-                  <AnimatePresence>
-                    {currentInvoices.map((inv) => (
+              <div
+                style={{
+                  width: "100%",
+                  maxWidth: "100%",
+                  minWidth: 0,
+                  border: "1px solid var(--border)",
+                  borderRadius: "0.9rem",
+                  background: "#fff",
+                  overflow: "hidden",
+                  boxSizing: "border-box",
+                }}
+              >
+                <div
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    maxWidth: "100%",
+                    minWidth: 0,
+                    overflowX: "scroll",
+                    overflowY: "hidden",
+                    WebkitOverflowScrolling: "touch",
+                    scrollbarWidth: "auto",
+                  }}
+                >
+                  <table
+                    className="styled-table"
+                    style={{
+                      width: "max-content",
+                      minWidth: "1000px",
+                    }}
+                  >
+                  <thead>
+                    <tr>
+                      <th>Invoice #</th>
+                      <th>Contact</th>
+                      <th>Invoice Date</th>
+                      <th>Due Date</th>
+                      <th>Total</th>
+                      <th>Paid</th>
+                      <th>Due</th>
+                      <th>Payment Status</th>
+                      <th>Timing</th>
+                      <th>View</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {currentInvoices.map((invoice) => (
                       <motion.tr
-                        key={inv.id}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.3 }}
+                        key={invoice.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
                       >
-                        <td style={{ fontWeight: 600 }}>{inv.invoiceNumber}</td>
+                        <td style={{ fontWeight: 700 }}>
+                          {invoice.invoiceNumber}
+                        </td>
 
-                        <td>{inv.customerName}</td>
+                        <td>{invoice.contact || "N/A"}</td>
 
-                        <td style={{ color: "var(--muted-foreground)", fontSize: "0.875rem" }}>
-                          {inv.invoiceDate}
+                        <td>{formatDate(invoice.invoiceDate)}</td>
+
+                        <td>{formatDate(invoice.dueDate)}</td>
+
+                        <td>
+                          {formatMoney(
+                            invoice.totalAmount,
+                            invoice.currency
+                          )}
                         </td>
 
                         <td>
-                          ₹{inv.amount.toLocaleString()}
+                          {formatMoney(
+                            invoice.paidAmount,
+                            invoice.currency
+                          )}
                         </td>
 
                         <td>
-                          {renderStatusBadge(inv.status)}
+                          {formatMoney(
+                            Math.max(invoice.amountDue ?? 0, 0),
+                            invoice.currency
+                          )}
+                        </td>
 
-                          {inv.error && (
-                            <div className="error-text">
-                              <AlertTriangle size={14} /> {inv.error}
+                        <td>
+                          <span
+                            style={paymentStyle(
+                              invoice.paymentStatus
+                            )}
+                          >
+                            {invoice.paymentStatus === "matched" ? (
+                              <CheckCircle2 size={14} />
+                            ) : invoice.paymentStatus === "failed" ? (
+                              <XCircle size={14} />
+                            ) : (
+                              <AlertTriangle size={14} />
+                            )}
+                            {paymentLabel(invoice.paymentStatus)}
+                          </span>
+
+                          {invoice.error && (
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "flex-start",
+                                gap: "0.3rem",
+                                marginTop: "0.4rem",
+                                color: "#b91c1c",
+                                fontSize: "0.72rem",
+                                lineHeight: 1.35,
+                                maxWidth: "220px",
+                              }}
+                            >
+                              <AlertTriangle
+                                size={13}
+                                style={{ flexShrink: 0 }}
+                              />
+                              {invoice.error}
                             </div>
                           )}
                         </td>
+
+                        <td>
+                          <span
+                            style={timingStyle(
+                              invoice.timingStatus
+                            )}
+                          >
+                            {invoice.timingStatus === "on_time" ? (
+                              <CheckCircle2 size={14} />
+                            ) : invoice.timingStatus === "overdue" ||
+                              invoice.timingStatus === "late" ? (
+                              <Clock3 size={14} />
+                            ) : (
+                              <AlertTriangle size={14} />
+                            )}
+                            {timingLabel(invoice.timingStatus)}
+                          </span>
+                        </td>
+
+                        <td>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelectedInvoice(invoice)
+                            }
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "0.35rem",
+                              background: "#f1ece5",
+                              color: "var(--primary)",
+                              border: "1px solid var(--border)",
+                              borderRadius: "0.5rem",
+                              padding: "0.5rem 0.7rem",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                            }}
+                          >
+                            <Eye size={15} />
+                            View
+                          </button>
+                        </td>
                       </motion.tr>
                     ))}
-                  </AnimatePresence>
-                </tbody>
-              </table>
+                  </tbody>
+                  </table>
+                </div>
+              </div>
 
-              {/* Pagination */}
               {totalPages > 1 && (
                 <div
                   style={{
                     display: "flex",
                     justifyContent: "center",
                     alignItems: "center",
-                    gap: "0.5rem",
-                    marginTop: "1.5rem",
+                    gap: "0.45rem",
+                    marginTop: "1.25rem",
                     flexWrap: "wrap",
                   }}
                 >
-                  {/* Previous Button */}
                   <button
+                    type="button"
+                    disabled={safePage === 1}
                     onClick={() =>
-                      setCurrentPage((prev) => Math.max(prev - 1, 1))
+                      setCurrentPage((page) =>
+                        Math.max(page - 1, 1)
+                      )
                     }
-                    disabled={currentPage === 1}
                     style={{
-                      padding: "0.5rem 0.9rem",
+                      padding: "0.5rem 0.85rem",
                       borderRadius: "0.5rem",
                       border: "1px solid var(--border)",
                       background:
-                        currentPage === 1
-                          ? "rgba(139, 121, 104, 0.05)"
-                          : "white",
+                        safePage === 1 ? "#f3eee8" : "#fff",
                       color:
-                        currentPage === 1
-                          ? "rgba(74, 64, 54, 0.4)"
-                          : "#4a4036",
+                        safePage === 1 ? "#a99b8d" : "#3f352c",
                       cursor:
-                        currentPage === 1
-                          ? "not-allowed"
-                          : "pointer",
+                        safePage === 1 ? "not-allowed" : "pointer",
                     }}
                   >
                     Previous
                   </button>
 
-                  {/* Page Numbers */}
-                  {Array.from({ length: totalPages }, (_, index) => index + 1).map(
-                    (page) => (
-                      <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        style={{
-                          minWidth: "40px",
-                          padding: "0.5rem 0.75rem",
-                          borderRadius: "0.5rem",
-                          border: "1px solid var(--border)",
-                          background:
-                            currentPage === page
-                              ? "var(--primary)"
-                              : "white",
-                          color:
-                            currentPage === page
-                              ? "white"
-                              : "#4a4036",
-                          fontWeight:
-                            currentPage === page ? 700 : 500,
-                          cursor: "pointer",
-                        }}
-                      >
-                        {page}
-                      </button>
-                    )
-                  )}
+                  {Array.from(
+                    { length: totalPages },
+                    (_, index) => index + 1
+                  ).map((page) => (
+                    <button
+                      type="button"
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      style={{
+                        minWidth: "40px",
+                        padding: "0.5rem 0.7rem",
+                        borderRadius: "0.5rem",
+                        border: "1px solid var(--border)",
+                        background:
+                          safePage === page
+                            ? "var(--primary)"
+                            : "#fff",
+                        color:
+                          safePage === page
+                            ? "#fff"
+                            : "#3f352c",
+                        fontWeight:
+                          safePage === page ? 800 : 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {page}
+                    </button>
+                  ))}
 
-                  {/* Next Button */}
                   <button
+                    type="button"
+                    disabled={safePage === totalPages}
                     onClick={() =>
-                      setCurrentPage((prev) =>
-                        Math.min(prev + 1, totalPages)
+                      setCurrentPage((page) =>
+                        Math.min(page + 1, totalPages)
                       )
                     }
-                    disabled={currentPage === totalPages}
                     style={{
-                      padding: "0.5rem 0.9rem",
+                      padding: "0.5rem 0.85rem",
                       borderRadius: "0.5rem",
                       border: "1px solid var(--border)",
                       background:
-                        currentPage === totalPages
-                          ? "rgba(139, 121, 104, 0.05)"
-                          : "white",
+                        safePage === totalPages ? "#f3eee8" : "#fff",
                       color:
-                        currentPage === totalPages
-                          ? "rgba(74, 64, 54, 0.4)"
-                          : "#4a4036",
+                        safePage === totalPages
+                          ? "#a99b8d"
+                          : "#3f352c",
                       cursor:
-                        currentPage === totalPages
+                        safePage === totalPages
                           ? "not-allowed"
                           : "pointer",
                     }}
@@ -710,86 +1313,354 @@ export default function DashboardPage() {
                   </button>
                 </div>
               )}
-            </div>
-          </motion.div>
-        )}
-
-        <AnimatePresence>
-          {!isProcessing && progress === 100 && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              style={{
-                marginTop: "3rem",
-                textAlign: "center",
-              }}
-            >
-              <button
-                className="btn-primary"
-                onClick={() => {
-                  setFile(null);
-                  setProgress(0);
-                  setProcessedInvoices([]);
-                  setCurrentPage(1);
-                  if (user) {
-                    fetchInvoices(user.id);
-                  }
+            </motion.div>
+          ) : (
+            !isLoadingInvoices && (
+              <motion.div
+                variants={itemVariants}
+                style={{
+                  marginTop: "1.5rem",
+                  padding: "2.5rem 1.5rem",
+                  textAlign: "center",
+                  background: "#faf8f4",
+                  borderRadius: "0.9rem",
+                  border: "1px dashed var(--border)",
                 }}
               >
-                Upload Another Batch
-              </button>
-            </motion.div>
+                <FileText
+                  size={34}
+                  style={{
+                    margin: "0 auto 0.75rem",
+                    color: "var(--muted-foreground)",
+                    opacity: 0.65,
+                  }}
+                />
+                <p
+                  style={{
+                    margin: 0,
+                    color: "var(--muted-foreground)",
+                  }}
+                >
+                  No invoices found for this account.
+                </p>
+                <p
+                  style={{
+                    marginTop: "0.3rem",
+                    fontSize: "0.85rem",
+                    color: "var(--muted-foreground)",
+                  }}
+                >
+                  Upload your CSV above to start reconciliation.
+                </p>
+              </motion.div>
+            )
           )}
-        </AnimatePresence>
+        </motion.div>
       </motion.div>
 
-      {/* Minimal History Slide-Over Drawer Modal */}
       <AnimatePresence>
-        {isHistoryOpen && (
+        {selectedInvoice && (
           <div
+            onClick={() => setSelectedInvoice(null)}
             style={{
               position: "fixed",
               inset: 0,
-              zIndex: 50,
+              zIndex: 70,
+              background: "rgba(63, 53, 44, 0.28)",
+              backdropFilter: "blur(4px)",
               display: "flex",
               justifyContent: "flex-end",
-              background: "rgba(255, 255, 255, 0.5)",
-              backdropFilter: "blur(4px)",
             }}
-            onClick={() => setIsHistoryOpen(false)}
           >
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 220 }}
-              onClick={(e) => e.stopPropagation()}
+              transition={{
+                type: "spring",
+                damping: 25,
+                stiffness: 220,
+              }}
+              onClick={(event) => event.stopPropagation()}
               style={{
                 width: "100%",
-                maxWidth: "480px",
+                maxWidth: "520px",
                 height: "100vh",
                 background: "#fdfbf7",
                 borderLeft: "1px solid var(--border)",
-                display: "flex",
-                flexDirection: "column",
-                boxShadow: "-10px 0 30px rgba(139, 121, 104, 0.2)",
-                overflow: "hidden",
+                boxShadow: "-10px 0 30px rgba(63, 53, 44, 0.15)",
+                overflowY: "auto",
               }}
             >
-              {/* Drawer Header */}
+              <div
+                style={{
+                  padding: "1.25rem 1.5rem",
+                  borderBottom: "1px solid var(--border)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  background: "#f7f3ed",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontSize: "0.78rem",
+                      color: "var(--muted-foreground)",
+                      marginBottom: "0.2rem",
+                    }}
+                  >
+                    Invoice Details
+                  </div>
+                  <h2
+                    style={{
+                      margin: 0,
+                      fontSize: "1.3rem",
+                      color: "#3f352c",
+                    }}
+                  >
+                    {selectedInvoice.invoiceNumber}
+                  </h2>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedInvoice(null)}
+                  style={{
+                    width: "38px",
+                    height: "38px",
+                    borderRadius: "50%",
+                    border: "1px solid var(--border)",
+                    background: "#fff",
+                    color: "#6b5c4d",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
               <div
                 style={{
                   padding: "1.5rem",
-                  borderBottom: "1px solid var(--border)",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  background: "rgba(139, 121, 104, 0.1)",
+                  display: "grid",
+                  gap: "0.8rem",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                  <History size={22} style={{ color: "var(--primary)" }} />
-                  <h2 style={{ fontSize: "1.25rem", fontWeight: 700, margin: 0, color: "#4a4036" }}>
+                {[
+                  ["Contact", selectedInvoice.contact || "N/A"],
+                  ["Invoice Date", formatDate(selectedInvoice.invoiceDate)],
+                  ["Due Date", formatDate(selectedInvoice.dueDate)],
+                  [
+                    "Invoice Value",
+                    formatMoney(
+                      selectedInvoice.amount,
+                      selectedInvoice.currency
+                    ),
+                  ],
+                  [
+                    "Tax",
+                    formatMoney(
+                      selectedInvoice.tax,
+                      selectedInvoice.currency
+                    ),
+                  ],
+                  [
+                    "Total Payable",
+                    formatMoney(
+                      selectedInvoice.totalAmount,
+                      selectedInvoice.currency
+                    ),
+                  ],
+                  [
+                    "Paid Amount",
+                    formatMoney(
+                      selectedInvoice.paidAmount,
+                      selectedInvoice.currency
+                    ),
+                  ],
+                  [
+                    "Amount Due",
+                    formatMoney(
+                      Math.max(selectedInvoice.amountDue ?? 0, 0),
+                      selectedInvoice.currency
+                    ),
+                  ],
+                  [
+                    "Paid Date",
+                    formatDate(selectedInvoice.paidDate),
+                  ],
+                ].map(([label, value]) => (
+                  <div
+                    key={label}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: "1rem",
+                      padding: "0.9rem 1rem",
+                      background: "#fff",
+                      border: "1px solid var(--border)",
+                      borderRadius: "0.7rem",
+                    }}
+                  >
+                    <span
+                      style={{
+                        color: "var(--muted-foreground)",
+                        fontSize: "0.85rem",
+                      }}
+                    >
+                      {label}
+                    </span>
+                    <span
+                      style={{
+                        color: "#3f352c",
+                        fontWeight: 700,
+                        textAlign: "right",
+                      }}
+                    >
+                      {value}
+                    </span>
+                  </div>
+                ))}
+
+                <div
+                  style={{
+                    marginTop: "0.4rem",
+                    padding: "1rem",
+                    background: "#fff",
+                    border: "1px solid var(--border)",
+                    borderRadius: "0.7rem",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "0.8rem",
+                      color: "var(--muted-foreground)",
+                      marginBottom: "0.5rem",
+                    }}
+                  >
+                    Payment Status
+                  </div>
+                  <span
+                    style={paymentStyle(
+                      selectedInvoice.paymentStatus
+                    )}
+                  >
+                    {paymentLabel(selectedInvoice.paymentStatus)}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    padding: "1rem",
+                    background: "#fff",
+                    border: "1px solid var(--border)",
+                    borderRadius: "0.7rem",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "0.8rem",
+                      color: "var(--muted-foreground)",
+                      marginBottom: "0.5rem",
+                    }}
+                  >
+                    Timing Status
+                  </div>
+                  <span
+                    style={timingStyle(selectedInvoice.timingStatus)}
+                  >
+                    {timingLabel(selectedInvoice.timingStatus)}
+                  </span>
+                </div>
+
+                {selectedInvoice.error && (
+                  <div
+                    style={{
+                      padding: "1rem",
+                      background: "#fff1f2",
+                      border: "1px solid #fecaca",
+                      borderRadius: "0.7rem",
+                      color: "#991b1b",
+                      fontSize: "0.85rem",
+                    }}
+                  >
+                    <strong>Error:</strong> {selectedInvoice.error}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isHistoryOpen && (
+          <div
+            onClick={() => setIsHistoryOpen(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 60,
+              background: "rgba(63, 53, 44, 0.22)",
+              backdropFilter: "blur(4px)",
+              display: "flex",
+              justifyContent: "flex-end",
+            }}
+          >
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{
+                type: "spring",
+                damping: 25,
+                stiffness: 220,
+              }}
+              onClick={(event) => event.stopPropagation()}
+              style={{
+                width: "100%",
+                maxWidth: "460px",
+                height: "100vh",
+                background: "#fdfbf7",
+                borderLeft: "1px solid var(--border)",
+                boxShadow: "-10px 0 30px rgba(63, 53, 44, 0.15)",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              <div
+                style={{
+                  padding: "1.25rem 1.5rem",
+                  borderBottom: "1px solid var(--border)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  background: "#f7f3ed",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.55rem",
+                  }}
+                >
+                  <History
+                    size={21}
+                    style={{ color: "var(--primary)" }}
+                  />
+                  <h2
+                    style={{
+                      margin: 0,
+                      color: "#3f352c",
+                      fontSize: "1.2rem",
+                    }}
+                  >
                     Invoice History
                   </h2>
                   <span
@@ -805,60 +1676,116 @@ export default function DashboardPage() {
                     {historyInvoices.length}
                   </span>
                 </div>
+
                 <button
+                  type="button"
                   onClick={() => setIsHistoryOpen(false)}
                   style={{
-                    background: "rgba(139, 121, 104, 0.05)",
+                    width: "38px",
+                    height: "38px",
+                    borderRadius: "50%",
                     border: "1px solid var(--border)",
-                    color: "#8b7968",
-                    padding: "0.5rem",
-                    borderRadius: "0.5rem",
+                    background: "#fff",
                     cursor: "pointer",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    transition: "all 0.2s ease",
+                    color: "#6b5c4d",
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = "#4a4036")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "#8b7968")}
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              {/* Minimal Invoices List (Only the invoices) */}
-              <div style={{ flex: 1, overflowY: "auto", padding: "1.25rem 1.5rem" }}>
-                {historyInvoices.length > 0 ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                    {historyInvoices.map((inv) => (
-                      <div
-                        key={inv.id}
+              <div
+                style={{
+                  flex: 1,
+                  overflowY: "auto",
+                  padding: "1.25rem 1.5rem",
+                }}
+              >
+                {invoices.length > 0 ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.7rem",
+                    }}
+                  >
+                    {[...invoices].reverse().map((invoice) => (
+                      <button
+                        type="button"
+                        key={invoice.id}
+                        onClick={() => {
+                          setIsHistoryOpen(false);
+                          setSelectedInvoice(invoice);
+                        }}
                         style={{
-                          padding: "1rem",
-                          borderRadius: "0.6rem",
-                          background: "rgba(139, 121, 104, 0.03)",
+                          textAlign: "left",
+                          padding: "0.9rem",
+                          borderRadius: "0.7rem",
+                          background: "#fff",
                           border: "1px solid var(--border)",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
+                          cursor: "pointer",
                         }}
                       >
-                        <div>
-                          <div style={{ fontWeight: 600, color: "#4a4036", fontSize: "0.95rem" }}>
-                            {inv.invoiceNumber}
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: "1rem",
+                          }}
+                        >
+                          <div>
+                            <div
+                              style={{
+                                fontWeight: 800,
+                                color: "#3f352c",
+                              }}
+                            >
+                              {invoice.invoiceNumber}
+                            </div>
+                            <div
+                              style={{
+                                marginTop: "0.2rem",
+                                fontSize: "0.8rem",
+                                color: "var(--muted-foreground)",
+                              }}
+                            >
+                              {invoice.contact || "N/A"}
+                            </div>
                           </div>
-                          <div style={{ fontSize: "0.85rem", color: "var(--muted-foreground)", marginTop: "0.2rem" }}>
-                            {inv.customerName}
-                          </div>
-                        </div>
 
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.3rem" }}>
-                          <span style={{ fontWeight: 600, color: "#b59a7a", fontSize: "0.95rem" }}>
-                            ₹{inv.amount.toLocaleString()}
-                          </span>
-                          {renderStatusBadge(inv.status)}
+                          <div
+                            style={{
+                              textAlign: "right",
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "flex-end",
+                              gap: "0.35rem",
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontWeight: 800,
+                                color: "var(--primary)",
+                              }}
+                            >
+                              {formatMoney(
+                                invoice.totalAmount,
+                                invoice.currency
+                              )}
+                            </div>
+                            <span
+                              style={paymentStyle(
+                                invoice.paymentStatus
+                              )}
+                            >
+                              {paymentLabel(invoice.paymentStatus)}
+                            </span>
+                          </div>
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 ) : (
@@ -869,10 +1796,7 @@ export default function DashboardPage() {
                       color: "var(--muted-foreground)",
                     }}
                   >
-                    <FileText size={36} style={{ margin: "0 auto 1rem auto", opacity: 0.4 }} />
-                    <p style={{ margin: 0, fontSize: "0.95rem", color: "#8b7968" }}>
-                      {isLoadingHistory ? "Loading history..." : "No invoices found in history."}
-                    </p>
+                    No invoices found in history.
                   </div>
                 )}
               </div>
